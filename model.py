@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 from e3nn.o3 import Irreps, spherical_harmonics
@@ -7,16 +8,24 @@ from torch_cluster import radius_graph
 
 
 class SE3ScoreModel(nn.Module):
-    def __init__(self, hidden_dim=32, num_neighbors=32, radius=5.0):
+    def __init__(self, hidden_dim=64, t_embed_dim=32, num_neighbors=16, radius=1, lmax=2):
         super().__init__()
 
         self.radius = radius
         self.num_neighbors = num_neighbors
+        self.lmax = lmax
 
-        # Define irreps clearly
-        irreps_node_input = Irreps("0e")  # Scalar features (initially no direction)
-        irreps_node_attr = Irreps("0e")  # Node attributes (scalar)
-        irreps_edge_attr = Irreps.spherical_harmonics(lmax=1)  # "1o"
+        # Time embedding MLP
+        self.t_embed = nn.Sequential(
+            nn.Linear(1, t_embed_dim),
+            nn.SiLU(),
+            nn.Linear(t_embed_dim, t_embed_dim)
+        )
+
+        # Define irreps
+        irreps_node_input = Irreps(f"{1 + t_embed_dim}x0e")  # 1 for ones + hidden_dim from t_embed
+        irreps_node_attr = Irreps(f"{t_embed_dim}x0e")  # Node attributes
+        irreps_edge_attr = Irreps.spherical_harmonics(lmax=self.lmax)  # "1o"
         irreps_hidden = Irreps(f"{hidden_dim}x0e + {hidden_dim}x1o")
         irreps_output = Irreps("1o")  # Vectorial output (3-dimensional)
 
@@ -44,22 +53,30 @@ class SE3ScoreModel(nn.Module):
 
         self.act = nn.SiLU()
 
-    def forward(self, coords, batch, t=None):
+    def forward(self, coords, batch, t):
         device = coords.device
         N = coords.shape[0]
 
+        # Time embedding
+        t_feat = self.t_embed(t.unsqueeze(-1))  # [B, hidden_dim]
+        t_per_node = t_feat[batch]
+
         # Node features
         node_feats = torch.ones(N, 1, device=device)
+        node_input = torch.cat([node_feats, t_per_node], dim=1)  # [N, 1 + hidden_dim]
 
-        # Edges and edge attributes
+        # Node attribute (same as t embedding)
+        node_attr = t_per_node  # [N, hidden_dim]
+
+        # Edge attributes
         edge_src, edge_dst = radius_graph(
             coords, r=self.radius, batch=batch, max_num_neighbors=self.num_neighbors
         )
         edge_vec = coords[edge_dst] - coords[edge_src]
 
         edge_sh = spherical_harmonics(
-            l=[0,1], x=edge_vec, normalize=True, normalization='component'
-        )  # [num_edges, 3]
+            l=np.arange(0, self.lmax+1).tolist(), x=edge_vec, normalize=True, normalization='component'
+        )  # [num_edges, sum l]
 
         edge_length = edge_vec.norm(dim=1)  # [num_edges]
 
@@ -73,20 +90,14 @@ class SE3ScoreModel(nn.Module):
             cutoff=True
         )  # [num_edges, number_of_basis]
 
-        # Node attributes (timestep embedding or scalar)
-        if t is not None:
-            node_attr = t[batch].unsqueeze(-1)
-        else:
-            node_attr = torch.ones(N, 1, device=device)
-
         # Convolution layers
         node_hidden = self.conv1(
-            node_input=node_feats,
+            node_input=node_input,
             node_attr=node_attr,
             edge_src=edge_src,
             edge_dst=edge_dst,
-            edge_attr=edge_sh,
-            edge_length_embedded=edge_length_embedded
+            edge_attr=edge_sh, # angular info
+            edge_length_embedded=edge_length_embedded # dist info
         )
         node_hidden = self.act(node_hidden)
 

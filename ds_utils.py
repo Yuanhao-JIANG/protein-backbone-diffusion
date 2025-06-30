@@ -45,6 +45,9 @@ class CADataset(Dataset):
 
     def __getitem__(self, idx):
         coords = np.load(self.data_files[idx])
+        coords = coords - coords.mean(axis=0)
+        scale = np.linalg.norm(coords, axis=1).mean()
+        coords = coords / scale
         return torch.tensor(coords, dtype=torch.float32)
 
 
@@ -65,9 +68,9 @@ def get_dataloaders():
     test_size = n - train_size - val_size
     train_set, val_set, test_set = random_split(dataset, [train_size, val_size, test_size])
 
-    # Collate for variable-length (just return list)
+    # Collate for variable-length (just return a list)
     def collate_fn(batch):
-        return batch  # List[Tensor], each of shape [L_i, 3]
+        return batch  # List[Tensor], each of shapes [L_i, 3]
 
     # Dataloaders
     train_loader = DataLoader(train_set, batch_size=32, shuffle=True, collate_fn=collate_fn)

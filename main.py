@@ -1,6 +1,6 @@
 import torch
 from model import SE3ScoreModel
-from sde import VESDE
+from sde import VESDE, VPSDE
 from ds_utils import get_dataloaders
 from train import train
 import os
@@ -17,14 +17,15 @@ def main():
 
     # === Model, SDE, Optimizer ===
     model = SE3ScoreModel().to(device)
-    sde = VESDE(sigma_min=0.01, sigma_max=50.0)
+    # sde = VESDE(sigma_min=0.01, sigma_max=50.0)
+    sde = VPSDE(beta_0=0.1, beta_1=20.0)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     # === Make folder if needed ===
     os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
 
     # === Train ===
-    train(model, train_loader, optimizer, sde, num_epochs=num_epochs, save_path=checkpoint_path, device=device)
+    train(model, test_loader, optimizer, sde, num_epochs=num_epochs, save_path=checkpoint_path, device=device)
 
 
 if __name__ == "__main__":

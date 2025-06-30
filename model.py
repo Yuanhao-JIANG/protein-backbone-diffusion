@@ -8,7 +8,7 @@ from torch_cluster import radius_graph
 
 
 class SE3ScoreModel(nn.Module):
-    def __init__(self, hidden_dim=64, t_embed_dim=32, num_neighbors=16, radius=1, lmax=2):
+    def __init__(self, hidden_dim=64, t_embed_dim=64, num_neighbors=16, radius=1, lmax=3):
         super().__init__()
 
         self.radius = radius
@@ -41,6 +41,17 @@ class SE3ScoreModel(nn.Module):
         )
 
         self.conv2 = Convolution(
+            irreps_in=irreps_hidden,
+            irreps_node_attr=irreps_node_attr,
+            irreps_edge_attr=irreps_edge_attr,
+            irreps_out=irreps_hidden,
+            number_of_basis=10,
+            radial_layers=2,
+            radial_neurons=hidden_dim,
+            num_neighbors=num_neighbors
+        )
+
+        self.conv3 = Convolution(
             irreps_in=irreps_hidden,
             irreps_node_attr=irreps_node_attr,
             irreps_edge_attr=irreps_edge_attr,
@@ -91,7 +102,7 @@ class SE3ScoreModel(nn.Module):
         )  # [num_edges, number_of_basis]
 
         # Convolution layers
-        node_hidden = self.conv1(
+        node_hidden1 = self.conv1(
             node_input=node_input,
             node_attr=node_attr,
             edge_src=edge_src,
@@ -99,10 +110,21 @@ class SE3ScoreModel(nn.Module):
             edge_attr=edge_sh, # angular info
             edge_length_embedded=edge_length_embedded # dist info
         )
-        node_hidden = self.act(node_hidden)
+        node_hidden1 = self.act(node_hidden1)
 
-        node_output = self.conv2(
-            node_input=node_hidden,
+        node_hidden2 = self.conv2(
+            node_input=node_hidden1,
+            node_attr=node_attr,
+            edge_src=edge_src,
+            edge_dst=edge_dst,
+            edge_attr=edge_sh,
+            edge_length_embedded=edge_length_embedded
+        )
+
+        node_hidden2 = self.act(node_hidden2)
+
+        node_output = self.conv3(
+            node_input=node_hidden2,
             node_attr=node_attr,
             edge_src=edge_src,
             edge_dst=edge_dst,

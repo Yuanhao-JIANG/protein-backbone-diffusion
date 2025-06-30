@@ -51,7 +51,7 @@ class CADataset(Dataset):
         return torch.tensor(coords, dtype=torch.float32)
 
 
-def get_dataloaders():
+def get_dataloaders(batch_size=32):
     if os.path.exists(SAVE_DIR):
         print(f"Directory already exists: {SAVE_DIR} — skipping coordinate extraction.")
     else:
@@ -73,8 +73,8 @@ def get_dataloaders():
         return batch  # List[Tensor], each of shapes [L_i, 3]
 
     # Dataloaders
-    train_loader = DataLoader(train_set, batch_size=32, shuffle=True, collate_fn=collate_fn)
-    val_loader = DataLoader(val_set, batch_size=32, shuffle=False, collate_fn=collate_fn)
-    test_loader = DataLoader(test_set, batch_size=32, shuffle=False, collate_fn=collate_fn)
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+    val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
+    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
     
     return train_loader, val_loader, test_loader

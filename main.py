@@ -3,17 +3,19 @@ from model import SE3ScoreModel
 from sde import VESDE, VPSDE
 from ds_utils import get_dataloaders
 from train import train
+from sampler import pc_sampler_batch
+from visual_util import plot_ca_backbone
 import os
 
 def main():
     # === Configs ===
-    num_epochs = 5
+    num_epochs = 3
     learning_rate = 1e-3
     checkpoint_path = "checkpoints/model.pt"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # === Dataset & Dataloader ===
-    train_loader, val_loader, test_loader = get_dataloaders()
+    train_loader, val_loader, test_loader = get_dataloaders(batch_size=32)
 
     # === Model, SDE, Optimizer ===
     model = SE3ScoreModel().to(device)
@@ -25,8 +27,18 @@ def main():
     os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
 
     # === Train ===
-    train(model, test_loader, optimizer, sde, num_epochs=num_epochs, save_path=checkpoint_path, device=device)
+    # train(model, train_loader, optimizer, sde, num_epochs=num_epochs, save_path=checkpoint_path, device=device)
 
+    # === Sampling ===
+    model = SE3ScoreModel()
+    model.load_state_dict(torch.load(checkpoint_path, map_location=device))
+    model.to(device)
+    sde = VPSDE(beta_0=0.1, beta_1=20.0)
+    lengths = [90, 100]  # Sample 2 domains of different lengths
+    coords, batch = pc_sampler_batch(model, sde, lengths=lengths, device=device)
+    for i in range(len(lengths)) :
+        domain = coords[batch == i].cpu().numpy()
+        plot_ca_backbone(domain)
 
 if __name__ == "__main__":
     main()

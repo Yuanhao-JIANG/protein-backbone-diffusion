@@ -1,6 +1,7 @@
 import os
 import torch
 from tqdm import tqdm
+from model import get_noise_conditioned_score
 
 def loss_fn(model, coords, batch, sde, eps=1e-5):
     B = int(batch.max().item()) + 1
@@ -16,13 +17,13 @@ def loss_fn(model, coords, batch, sde, eps=1e-5):
 
     # Add noise to the coordinates
     noise = torch.randn_like(coords)
-    x_t = mean + std.view(-1, 1) * noise                         # [total_nodes,3]
+    x_t = mean + std * noise                                     # [total_nodes,3]
 
     # Forward pass through the score model
-    score = model(x_t, batch=batch, t=t)                         # [total_nodes,3]
+    score = get_noise_conditioned_score(model, x_t, batch, t, sde)  # [total_nodes,3]
 
     # Compute the denoising score-matching loss
-    residual = score * std.view(-1, 1) + noise                   # [total_nodes,3]
+    residual = score * std + noise                               # [total_nodes,3]
 
     # Node-level squared loss
     loss_per_node = torch.sum(residual**2, dim=-1)               # [total_nodes]

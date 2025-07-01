@@ -1,4 +1,5 @@
 import torch
+from model import get_noise_conditioned_score
 
 
 @torch.no_grad()
@@ -8,6 +9,11 @@ def pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.01, n_corr_steps
         model: trained score model
         sde: VPSDE instance
         lengths: list of integers, each the number of residues in a domain
+        num_steps: number of predictor steps per domain
+        snr: signal-to-noise ratio for Langevin correction
+        n_corr_steps: number of Langevin correction steps
+        eps: starting time
+        device: device to run on
     Returns:
         Tensor of shape [sum(lengths), 3] (coordinates)
         Tensor of shape [sum(lengths)] (batch indices)
@@ -35,7 +41,7 @@ def pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.01, n_corr_steps
 
         # --- (4) Corrector step (Langevin)
         for _ in range(n_corr_steps):
-            score = model(x, batch=batch, t=t_i_batch)
+            score = get_noise_conditioned_score(model, x, batch, t_i_batch, sde)
             noise = torch.randn_like(x)
             grad_norm = torch.norm(score.reshape(total_nodes, -1), dim=-1).mean()
             noise_norm = torch.norm(noise.reshape(total_nodes, -1), dim=-1).mean()
@@ -44,7 +50,7 @@ def pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.01, n_corr_steps
             x = x + step_size * score + torch.sqrt(2 * step_size) * noise
 
         # --- (5) Predictor step (Euler–Maruyama)
-        score = model(x, batch=batch, t=t_i_batch)
+        score = get_noise_conditioned_score(model, x, batch, t_i_batch, sde)
         beta_t = sde.beta(t_i).view(-1, 1)
         drift = -0.5 * beta_t * x - beta_t * score
         diffusion = torch.sqrt(beta_t)

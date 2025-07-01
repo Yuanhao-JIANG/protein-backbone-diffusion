@@ -38,7 +38,3 @@ class VPSDE:
         mean = x_0 * torch.exp(log_mean_coeff)
         std = torch.sqrt(1.0 - torch.exp(2.0 * log_mean_coeff))
         return mean, std
-
-    def diffusion_coeff(self, t):
-        """Diffusion coefficient (std of the noise term in forward SDE)"""
-        return torch.sqrt(self.beta(t))

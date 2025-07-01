@@ -133,3 +133,9 @@ class SE3ScoreModel(nn.Module):
         )
 
         return node_output
+
+
+def get_noise_conditioned_score(model, x_t, batch, t, sde):
+    t_nodes = t[batch]  # [total_nodes]
+    _, std = sde.marginal_prob(torch.zeros_like(x_t), t_nodes)
+    return - model(x_t, batch=batch, t=t) / std

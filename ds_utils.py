@@ -7,7 +7,6 @@ import numpy as np
 
 
 # * Preprocessing to get CA coordinates
-# Directories
 PDB_DIR = Path("./dataset/cath-S40-pdb")
 SAVE_DIR = Path("./dataset/ca_coords")
 

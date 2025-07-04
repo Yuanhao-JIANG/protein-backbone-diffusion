@@ -8,17 +8,19 @@ from torch_cluster import radius_graph
 
 
 class SE3ScoreModel(nn.Module):
-    def __init__(self, hidden_dim=64, t_embed_dim=64, num_neighbors=16, radius=1, lmax=3):
+    def __init__(self, hidden_dim=64, t_embed_dim=128, num_neighbors=16, radius=1.5, num_basis=32, lmax=5):
         super().__init__()
 
         self.radius = radius
+        self.num_basis = num_basis
         self.num_neighbors = num_neighbors
         self.lmax = lmax
 
         # Time embedding MLP
         self.t_embed = nn.Sequential(
-            nn.Linear(1, t_embed_dim),
-            nn.SiLU(),
+            GaussianFourierProjection(t_embed_dim, scale=30.),
+            nn.Linear(t_embed_dim, t_embed_dim),
+            nn.GELU(),
             nn.Linear(t_embed_dim, t_embed_dim)
         )
 
@@ -26,7 +28,7 @@ class SE3ScoreModel(nn.Module):
         irreps_node_input = Irreps(f"{1 + t_embed_dim}x0e")  # 1 for ones + hidden_dim from t_embed
         irreps_node_attr = Irreps(f"{t_embed_dim}x0e")  # Node attributes
         irreps_edge_attr = Irreps.spherical_harmonics(lmax=self.lmax)  # "1o"
-        irreps_hidden = Irreps(f"{hidden_dim}x0e + {hidden_dim}x1o")
+        irreps_hidden = Irreps(f"{hidden_dim}x0e + {hidden_dim//2}x1e + {hidden_dim//2}x2e + {hidden_dim//2}x1o + {hidden_dim//2}x2o")
         irreps_output = Irreps("1o")  # Vectorial output (3-dimensional)
 
         self.conv1 = Convolution(
@@ -34,8 +36,8 @@ class SE3ScoreModel(nn.Module):
             irreps_node_attr=irreps_node_attr,
             irreps_edge_attr=irreps_edge_attr,
             irreps_out=irreps_hidden,
-            number_of_basis=10,
-            radial_layers=2,
+            number_of_basis=num_basis,
+            radial_layers=3,
             radial_neurons=hidden_dim,
             num_neighbors=num_neighbors
         )
@@ -45,8 +47,8 @@ class SE3ScoreModel(nn.Module):
             irreps_node_attr=irreps_node_attr,
             irreps_edge_attr=irreps_edge_attr,
             irreps_out=irreps_hidden,
-            number_of_basis=10,
-            radial_layers=2,
+            number_of_basis=num_basis,
+            radial_layers=3,
             radial_neurons=hidden_dim,
             num_neighbors=num_neighbors
         )
@@ -55,14 +57,25 @@ class SE3ScoreModel(nn.Module):
             irreps_in=irreps_hidden,
             irreps_node_attr=irreps_node_attr,
             irreps_edge_attr=irreps_edge_attr,
-            irreps_out=irreps_output,
-            number_of_basis=10,
-            radial_layers=2,
+            irreps_out=irreps_hidden,
+            number_of_basis=num_basis,
+            radial_layers=3,
             radial_neurons=hidden_dim,
             num_neighbors=num_neighbors
         )
 
-        self.act = nn.SiLU()
+        self.conv4 = Convolution(
+            irreps_in=irreps_hidden,
+            irreps_node_attr=irreps_node_attr,
+            irreps_edge_attr=irreps_edge_attr,
+            irreps_out=irreps_output,
+            number_of_basis=num_basis,
+            radial_layers=3,
+            radial_neurons=hidden_dim,
+            num_neighbors=num_neighbors
+        )
+
+        self.act = nn.GELU()
 
     def forward(self, coords, batch, t):
         device = coords.device
@@ -91,12 +104,12 @@ class SE3ScoreModel(nn.Module):
 
         edge_length = edge_vec.norm(dim=1)  # [num_edges]
 
-        # Radial embedding (fix)
+        # Radial embedding
         edge_length_embedded = soft_one_hot_linspace(
             edge_length,
             start=0.0,
             end=self.radius,
-            number=10,  # match your convolution's number_of_basis parameter
+            number=self.num_basis,  # match convolution's number_of_basis parameter
             basis='gaussian',
             cutoff=True
         )  # [num_edges, number_of_basis]
@@ -120,11 +133,22 @@ class SE3ScoreModel(nn.Module):
             edge_attr=edge_sh,
             edge_length_embedded=edge_length_embedded
         )
-
         node_hidden2 = self.act(node_hidden2)
+        node_hidden2 = node_hidden2 + node_hidden1  # residual structure
 
-        node_output = self.conv3(
+        node_hidden3 = self.conv3(
             node_input=node_hidden2,
+            node_attr=node_attr,
+            edge_src=edge_src,
+            edge_dst=edge_dst,
+            edge_attr=edge_sh,
+            edge_length_embedded=edge_length_embedded
+        )
+        node_hidden3 = self.act(node_hidden3)
+        node_hidden3 = node_hidden3 + node_hidden2 # residual structure
+
+        node_output = self.conv4(
+            node_input=node_hidden3,
             node_attr=node_attr,
             edge_src=edge_src,
             edge_dst=edge_dst,
@@ -133,6 +157,20 @@ class SE3ScoreModel(nn.Module):
         )
 
         return node_output
+
+
+class GaussianFourierProjection(nn.Module):
+    def __init__(self, embed_dim, scale=20.):   # embed_dim must be divisible by 2
+        super().__init__()
+        self.W = nn.Parameter(torch.randn(embed_dim // 2) * scale, requires_grad=False)
+
+    def forward(self, t):
+        """
+        Input: t of shape [B, 1]
+        Output: [B, embed_dim]
+        """
+        x_proj = 2 * torch.pi * t * self.W  # [B, D/2]
+        return torch.cat([torch.sin(x_proj), torch.cos(x_proj)], dim=-1)
 
 
 def get_noise_conditioned_score(model, x_t, batch, t, sde):

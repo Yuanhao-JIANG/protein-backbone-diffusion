@@ -23,6 +23,12 @@ class VPSDE:
         """Beta schedule: linear interpolation between beta_0 and beta_1"""
         return self.beta_0 + t * (self.beta_1 - self.beta_0)
 
+    def drift(self, x, t):
+        return -0.5 * self.beta(t) * x
+
+    def diffusion(self, x, t):
+        return torch.sqrt(self.beta(t))
+
     def marginal_log_mean_coeff(self, t):
         """Compute log of mu(t)"""
         # \int beta(s) ds = beta_0 * t + 0.5 * (beta_1 - beta_0) * t^2

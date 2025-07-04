@@ -3,7 +3,7 @@ from model import get_noise_conditioned_score
 
 
 @torch.no_grad()
-def pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.01, n_corr_steps=2, eps=1e-3, device='cpu'):
+def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.01, n_corr_steps=1, eps=1e-3, device='cpu'):
     """
     Args:
         model: trained score model
@@ -46,16 +46,18 @@ def pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.01, n_corr_steps
             grad_norm = torch.norm(score.reshape(total_nodes, -1), dim=-1).mean()
             noise_norm = torch.norm(noise.reshape(total_nodes, -1), dim=-1).mean()
             step_size = (snr * noise_norm / grad_norm) ** 2 * 2 * sde.beta(t_i)
+            print((snr * noise_norm / grad_norm), step_size)
 
             x = x + step_size * score + torch.sqrt(2 * step_size) * noise
 
         # --- (5) Predictor step (Euler–Maruyama)
         score = get_noise_conditioned_score(model, x, batch, t_i_batch, sde)
-        beta_t = sde.beta(t_i).view(-1, 1)
-        drift = -0.5 * beta_t * x - beta_t * score
-        diffusion = torch.sqrt(beta_t)
+        drift = sde.drift(x, t_i) - sde.diffusion(x, t_i) ** 2 * score
+        diffusion = sde.diffusion(x, t_i)
 
         z = torch.randn_like(x)
         x = x + drift * dt + diffusion * torch.sqrt(-dt) * z
+
+        print(f"Step {i}, x min: {x.abs().min().item():.2f}, x max: {x.abs().max().item():.2f}, mean: {x.norm(dim=-1).mean().item():.2f}")
 
     return x, batch

@@ -3,7 +3,7 @@ from model import get_noise_conditioned_score
 
 
 @torch.no_grad()
-def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.01, n_corr_steps=1, eps=1e-3, device='cpu'):
+def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.01, n_corr_steps=2, eps=1e-3, device='cpu'):
     """
     Args:
         model: trained score model
@@ -37,6 +37,7 @@ def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.01, n_corr_step
 
     for i in range(num_steps):
         t_i = t_array[i]
+        print(f't = {t_i}')
         t_i_batch = t_i.expand(len(lengths))
 
         # --- (4) Corrector step (Langevin)
@@ -46,7 +47,8 @@ def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.01, n_corr_step
             grad_norm = torch.norm(score.reshape(total_nodes, -1), dim=-1).mean()
             noise_norm = torch.norm(noise.reshape(total_nodes, -1), dim=-1).mean()
             step_size = (snr * noise_norm / grad_norm) ** 2 * 2 * sde.beta(t_i)
-            print((snr * noise_norm / grad_norm), step_size)
+            print(f'step_size = {step_size}, grad_norm = {grad_norm}')
+            # step_size = torch.tensor(0.01)
 
             x = x + step_size * score + torch.sqrt(2 * step_size) * noise
 

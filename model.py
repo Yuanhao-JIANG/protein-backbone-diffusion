@@ -8,7 +8,7 @@ from torch_cluster import radius_graph
 
 
 class SE3ScoreModel(nn.Module):
-    def __init__(self, hidden_dim=64, t_embed_dim=128, num_neighbors=16, radius=1.5, num_basis=32, lmax=5):
+    def __init__(self, hidden_dim=64, t_embed_dim=128, num_neighbors=10, radius=1, num_basis=32, lmax=5):
         super().__init__()
 
         self.radius = radius
@@ -20,7 +20,7 @@ class SE3ScoreModel(nn.Module):
         self.t_embed = nn.Sequential(
             GaussianFourierProjection(t_embed_dim, scale=30.),
             nn.Linear(t_embed_dim, t_embed_dim),
-            nn.GELU(),
+            nn.SiLU(),
             nn.Linear(t_embed_dim, t_embed_dim)
         )
 
@@ -28,7 +28,7 @@ class SE3ScoreModel(nn.Module):
         irreps_node_input = Irreps(f"{1 + t_embed_dim}x0e")  # 1 for ones + hidden_dim from t_embed
         irreps_node_attr = Irreps(f"{t_embed_dim}x0e")  # Node attributes
         irreps_edge_attr = Irreps.spherical_harmonics(lmax=self.lmax)  # "1o"
-        irreps_hidden = Irreps(f"{hidden_dim}x0e + {hidden_dim//2}x1e + {hidden_dim//2}x2e + {hidden_dim//2}x1o + {hidden_dim//2}x2o")
+        irreps_hidden = Irreps(f"{hidden_dim//2}x0e + {hidden_dim//2}x1e + {hidden_dim//4}x2e + {hidden_dim//2}x1o + {hidden_dim//2}x2o")
         irreps_output = Irreps("1o")  # Vectorial output (3-dimensional)
 
         self.conv1 = Convolution(
@@ -75,7 +75,13 @@ class SE3ScoreModel(nn.Module):
             num_neighbors=num_neighbors
         )
 
-        self.act = nn.GELU()
+        self.coord_mlp = nn.Sequential(
+            nn.Linear(3, 64),
+            nn.SiLU(),
+            nn.Linear(64, 3)
+        )
+
+        self.act = nn.SiLU()
 
     def forward(self, coords, batch, t):
         device = coords.device
@@ -156,11 +162,19 @@ class SE3ScoreModel(nn.Module):
             edge_length_embedded=edge_length_embedded
         )
 
-        return node_output
+        # Add residual to output
+        mlp_residual = self.coord_mlp(coords)  # [N, 3]
+        output = node_output + mlp_residual
+
+        # e3nn_norm = torch.norm(node_output.reshape(len(coords), -1), dim=-1).mean()
+        # mlp_norm = torch.norm(mlp_residual.reshape(len(coords), -1), dim=-1).mean()
+        # print(f'e3nn_norm: {e3nn_norm}, mlp_norm: {mlp_norm}')
+
+        return output
 
 
 class GaussianFourierProjection(nn.Module):
-    def __init__(self, embed_dim, scale=20.):   # embed_dim must be divisible by 2
+    def __init__(self, embed_dim, scale=30.):   # embed_dim must be divisible by 2
         super().__init__()
         self.W = nn.Parameter(torch.randn(embed_dim // 2) * scale, requires_grad=False)
 

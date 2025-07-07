@@ -38,7 +38,7 @@ def main():
     coords, batch = pc_sampler_batch(model, sde, lengths=lengths, device=device)
     for i in range(len(lengths)) :
         domain = coords[batch == i].cpu().numpy()
-        plot_ca_backbone(domain)
+        plot_ca_backbone(domain, save=True)
 
 if __name__ == "__main__":
     main()

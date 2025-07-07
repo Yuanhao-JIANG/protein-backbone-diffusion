@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def plot_ca_backbone(coords, title="Protein Backbone"):
+def plot_ca_backbone(coords, title="Protein Backbone", save=False):
     fig = plt.figure(figsize=(8, 8))
     ax = fig.add_subplot(111, projection='3d')
 
@@ -28,4 +28,6 @@ def plot_ca_backbone(coords, title="Protein Backbone"):
     ax.set_zlim(mid_z - max_range, mid_z + max_range)
 
     plt.tight_layout()
+    if save:
+        plt.savefig(f'./figs/{len(coords)}.png')
     plt.show()

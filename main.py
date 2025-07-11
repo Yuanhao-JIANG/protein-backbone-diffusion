@@ -16,7 +16,7 @@ def main():
     print("Using device:", device)
 
     # === Dataset & Dataloader ===
-    train_loader, val_loader, test_loader = get_dataloaders(batch_size=32)
+    train_loader, val_loader, test_loader = get_dataloaders(batch_size=32, truncate=True)
 
     # === Model, SDE, Optimizer ===
     model = SE3ScoreModel().to(device)

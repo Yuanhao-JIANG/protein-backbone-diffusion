@@ -4,11 +4,13 @@ import torch
 from torch.utils.data import Dataset, DataLoader, random_split
 from pathlib import Path
 import numpy as np
+import random
 
 
 # * Preprocessing to get CA coordinates
 PDB_DIR = Path("./dataset/cath-S40-pdb")
 SAVE_DIR = Path("./dataset/ca_coords")
+TRUNCATED_DIR = Path("./dataset/ca_coords_truncated")
 
 # Function to extract CA coordinates
 def extract_ca_coordinates(pdb_path):
@@ -34,6 +36,23 @@ def get_ca_coordinates():
     print("Done")
 
 
+# Truncate to a smaller dataset
+def truncate_dataset(max_length=30):
+    print("Truncating dataset")
+    for file in SAVE_DIR.glob("*.npy"):
+        coords = np.load(file)
+
+        if coords.shape[0] > max_length:
+            u_i = random.randint(10, max_length)
+            truncated = coords[:u_i]
+        else:
+            truncated = coords
+
+        save_path = TRUNCATED_DIR / file.name
+        np.save(save_path, truncated)
+    print("Done")
+
+
 # * Pytorch dataset and dataloaders
 class CADataset(Dataset):
     def __init__(self, data_dir):
@@ -50,15 +69,22 @@ class CADataset(Dataset):
         return torch.tensor(coords, dtype=torch.float32)
 
 
-def get_dataloaders(batch_size=32):
+def get_dataloaders(batch_size=32, truncate=False):
     if os.path.exists(SAVE_DIR):
         print(f"Directory already exists: {SAVE_DIR} — skipping coordinate extraction.")
     else:
         SAVE_DIR.mkdir(parents=True, exist_ok=True)
         get_ca_coordinates()
 
+    if truncate:
+        if os.path.exists(TRUNCATED_DIR):
+            print(f"Directory already exists: {TRUNCATED_DIR} — skipping truncating.")
+        else:
+            TRUNCATED_DIR.mkdir(parents=True, exist_ok=True)
+            truncate_dataset()
+
     # Create dataset
-    dataset = CADataset("dataset/ca_coords")
+    dataset = CADataset(SAVE_DIR if not truncate else TRUNCATED_DIR)
 
     # Split: 80% train, 10% val, 10% test
     n = len(dataset)
@@ -69,7 +95,7 @@ def get_dataloaders(batch_size=32):
 
     # Collate for variable-length (just return a list)
     def collate_fn(batch):
-        return batch  # List[Tensor], each of shapes [L_i, 3]
+        return batch  # List[Tensor], each of the shapes [L_i, 3]
 
     # Dataloaders
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)

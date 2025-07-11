@@ -54,7 +54,7 @@ class CosineVPSDE:
         return torch.cos((t + self.s) / (1 + self.s) * torch.pi / 2) ** 2
 
     def marginal_prob(self, x_0, t):
-        alpha_bar = self._alpha_bar(t)
+        alpha_bar = self._alpha_bar(t)[:, None]
         mean = x_0 * torch.sqrt(alpha_bar)
         std = torch.sqrt(1. - alpha_bar)
         return mean, std

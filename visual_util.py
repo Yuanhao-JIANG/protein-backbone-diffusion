@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import torch
 
 
 def plot_ca_backbone(coords, title="Protein Backbone", save=False):
@@ -30,4 +31,29 @@ def plot_ca_backbone(coords, title="Protein Backbone", save=False):
     plt.tight_layout()
     if save:
         plt.savefig(f'./figs/{len(coords)}.png')
+    plt.show()
+
+def plot_perturbation(coords, sde, save=False):
+    times = [0.01, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99]
+    n_plots = len(times)
+    n_cols = 5
+    n_rows = (n_plots + n_cols - 1) // n_cols
+
+    fig = plt.figure(figsize=(5 * n_cols, 4 * n_rows))
+
+    for i, t in enumerate(times):
+        ax = fig.add_subplot(n_rows, n_cols, i + 1, projection='3d')
+        mean, std = sde.marginal_prob(coords, torch.tensor([t]))
+        noise = torch.randn_like(coords)
+        x_t = mean + std.view(-1, 1) * noise
+        ax.plot(x_t[:, 0], x_t[:, 1], x_t[:, 2], '-o', linewidth=2, markersize=4)
+        ax.set_title(f't = {t:.3f}')
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_zticks([])
+        ax.set_box_aspect([1, 1, 1])  # Keep aspect ratio
+
+    plt.tight_layout()
+    if save:
+        plt.savefig(f'./figs/perturbation_{len(coords)}.png')
     plt.show()

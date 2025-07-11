@@ -45,14 +45,10 @@ def train(model, dataloader, optimizer, sde, num_epochs=50, save_path='checkpoin
         for batch in tqdm(dataloader, desc=f"Epoch {epoch}/{num_epochs}"):
             coords_list = batch if isinstance(batch, (list, tuple)) else [batch]
 
-            # from visual_util import plot_ca_backbone
-            # coords = coords_list[0]
-            # plot_ca_backbone(coords)
-            # mean, std = sde.marginal_prob(coords, torch.tensor([0.99]))
-            # noise = torch.randn_like(coords)
-            # x_1 = mean + std.view(-1, 1) * noise
-            # plot_ca_backbone(x_1)
-            # exit()
+            from visual_util import plot_perturbation
+            coords = coords_list[0]
+            plot_perturbation(coords, sde)
+            exit()
 
             coords = torch.cat(coords_list, dim=0).to(device)  # Flattened coords [total_nodes,3]
 

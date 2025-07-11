@@ -44,3 +44,30 @@ class VPSDE:
         mean = x_0 * torch.exp(log_mean_coeff)
         std = torch.sqrt(1.0 - torch.exp(2.0 * log_mean_coeff))
         return mean, std
+
+
+class CosineVPSDE:
+    def __init__(self, s=0.008):
+        self.s = s
+
+    def _alpha_bar(self, t):
+        return torch.cos((t + self.s) / (1 + self.s) * torch.pi / 2) ** 2
+
+    def marginal_prob(self, x_0, t):
+        alpha_bar = self._alpha_bar(t)
+        mean = x_0 * torch.sqrt(alpha_bar)
+        std = torch.sqrt(1. - alpha_bar)
+        return mean, std
+
+    def beta(self, t):
+        # Compute beta(t) = -d log alpha_bar(t) / dt
+        s = self.s
+        return torch.tan((t + s) / (1 + s) * torch.pi / 2) * torch.pi / (1 + s)
+
+    def drift(self, x, t):
+        beta_t = self.beta(t)
+        return -0.5 * beta_t * x
+
+    def diffusion(self, t):
+        beta_t = self.beta(t)
+        return torch.sqrt(beta_t)

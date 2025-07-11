@@ -1,6 +1,6 @@
 import torch
 from model import SE3ScoreModel
-from sde import VESDE, VPSDE
+from sde import VESDE, VPSDE, CosineVPSDE
 from ds_utils import get_dataloaders
 from train import train
 from sampler import pc_sampler_batch
@@ -21,7 +21,8 @@ def main():
     # === Model, SDE, Optimizer ===
     model = SE3ScoreModel().to(device)
     # sde = VESDE(sigma_min=0.01, sigma_max=50.0)
-    sde = VPSDE(beta_0=0.1, beta_1=20.0)
+    # sde = VPSDE(beta_0=0.1, beta_1=20.0)
+    sde = CosineVPSDE(s=0.001)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     # === Make folder if needed ===

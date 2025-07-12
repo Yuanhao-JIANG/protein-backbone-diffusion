@@ -164,13 +164,13 @@ class SE3ScoreModel(nn.Module):
 
         # Add residual to output
         mlp_residual = self.coord_mlp(coords)  # [N, 3]
-        output = node_output + mlp_residual
+        node_output = node_output + mlp_residual
 
         # e3nn_norm = torch.norm(node_output.reshape(len(coords), -1), dim=-1).mean()
         # mlp_norm = torch.norm(mlp_residual.reshape(len(coords), -1), dim=-1).mean()
         # print(f'e3nn_norm: {e3nn_norm}, mlp_norm: {mlp_norm}')
 
-        return output
+        return node_output
 
 
 class GaussianFourierProjection(nn.Module):

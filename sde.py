@@ -68,6 +68,6 @@ class CosineVPSDE:
         beta_t = self.beta(t)
         return -0.5 * beta_t * x
 
-    def diffusion(self, t):
+    def diffusion(self, x, t):
         beta_t = self.beta(t)
         return torch.sqrt(beta_t)

@@ -47,7 +47,7 @@ def train(model, dataloader, optimizer, sde, num_epochs=50, save_path='checkpoin
 
             # from visual_util import plot_perturbation
             # coords = coords_list[0]
-            # plot_perturbation(coords, sde)
+            # plot_perturbation(coords, sde, save=True)
             # exit()
 
             coords = torch.cat(coords_list, dim=0).to(device)  # Flattened coords [total_nodes,3]

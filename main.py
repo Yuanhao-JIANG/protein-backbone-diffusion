@@ -1,10 +1,9 @@
 import torch
-from model import SE3ScoreModel
+from model import SE3ScoreModel, UNetModel
 from sde import VESDE, VPSDE, CosineVPSDE
 from ds_utils import get_dataloaders
 from train import train
 from sampler import pc_sampler_batch
-from visual_util import plot_ca_backbone
 import os
 
 def main():
@@ -19,7 +18,8 @@ def main():
     train_loader, val_loader, test_loader = get_dataloaders(batch_size=32, truncate=True)
 
     # === Model, SDE, Optimizer ===
-    model = SE3ScoreModel().to(device)
+    # model = SE3ScoreModel().to(device)
+    model = UNetModel().to(device)
     # sde = VESDE(sigma_min=0.01, sigma_max=50.0)
     # sde = VPSDE(beta_0=0.1, beta_1=20.0)
     sde = CosineVPSDE(s=0.001)
@@ -33,7 +33,6 @@ def main():
     train(model, train_loader, optimizer, sde, num_epochs=num_epochs, save_path=checkpoint_path, device=device)
 
     # === Sampling ===
-    model = SE3ScoreModel()
     model.load_state_dict(torch.load(checkpoint_path, map_location=device))
     model.to(device)
     lengths = [20, 20]  # Sample 2 domains of different lengths

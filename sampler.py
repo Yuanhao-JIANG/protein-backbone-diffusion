@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 
 @torch.no_grad()
-def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.01, n_corr_steps=2, eps=1e-3, plot=False, device='cpu'):
+def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.16, n_corr_steps=2, eps=1e-3, plot=False, device='cpu'):
     """
     Args:
         model: trained score model
@@ -40,6 +40,7 @@ def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.01, n_corr_step
         n_cols = 6
         n_rows = 3
         fig = plt.figure(figsize=(5 * n_cols, 4 * n_rows))
+        j = 0
 
     for i in range(num_steps):
         t_i = t_array[i]
@@ -69,15 +70,16 @@ def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.01, n_corr_step
 
         print(f"Step {i}, x min: {x.abs().min().item():.2f}, x max: {x.abs().max().item():.2f}, mean: {x.norm(dim=-1).mean().item():.2f}")
 
-        if plot:
+        if plot and (i % 60 == 0 or i == num_steps - 1):
             x_t = x[batch == 0].cpu().numpy()
-            ax = fig.add_subplot(n_rows, n_cols, i + 1, projection='3d')
+            ax = fig.add_subplot(n_rows, n_cols, j + 1, projection='3d')
             ax.plot(x_t[:, 0], x_t[:, 1], x_t[:, 2], '-o', linewidth=2, markersize=4)
             ax.set_title(f't = {t_i:.3f}', fontsize=12)
-            ax.set_xticks([])
-            ax.set_yticks([])
-            ax.set_zticks([])
+            # ax.set_xticks([])
+            # ax.set_yticks([])
+            # ax.set_zticks([])
             ax.set_box_aspect([1, 1, 1])  # Keep an aspect ratio
+            j+=1
 
     plt.tight_layout()
     plt.savefig(f'./figs/denoising_{len(x_t)}.png')

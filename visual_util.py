@@ -48,9 +48,9 @@ def plot_perturbation(coords, sde, save=False):
         x_t = mean + std.view(-1, 1) * noise
         ax.plot(x_t[:, 0], x_t[:, 1], x_t[:, 2], '-o', linewidth=2, markersize=4)
         ax.set_title(f't = {t:.3f}, std = {std.item():.3f}', fontsize=12)
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.set_zticks([])
+        # ax.set_xticks([])
+        # ax.set_yticks([])
+        # ax.set_zticks([])
         ax.set_box_aspect([1, 1, 1])  # Keep an aspect ratio
 
     plt.tight_layout()

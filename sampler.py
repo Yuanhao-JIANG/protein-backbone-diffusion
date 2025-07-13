@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 
 @torch.no_grad()
-def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.16, n_corr_steps=2, eps=1e-3, plot=False, device='cpu'):
+def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.01, n_corr_steps=2, eps=1e-3, plot=False, device='cpu'):
     """
     Args:
         model: trained score model
@@ -68,16 +68,13 @@ def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.16, n_corr_step
         z = torch.randn_like(x)
         x = x + drift * dt + diffusion * torch.sqrt(-dt) * z
 
-        print(f"Step {i}, x min: {x.abs().min().item():.2f}, x max: {x.abs().max().item():.2f}, mean: {x.norm(dim=-1).mean().item():.2f}")
+        print(f"Step {i}, x min: {x.abs().min().item():.3f}, x max: {x.abs().max().item():.3f}, mean: {x.norm(dim=-1).mean().item():.3f}")
 
         if plot and (i % 60 == 0 or i == num_steps - 1):
             x_t = x[batch == 0].cpu().numpy()
             ax = fig.add_subplot(n_rows, n_cols, j + 1, projection='3d')
             ax.plot(x_t[:, 0], x_t[:, 1], x_t[:, 2], '-o', linewidth=2, markersize=4)
             ax.set_title(f't = {t_i:.3f}', fontsize=12)
-            # ax.set_xticks([])
-            # ax.set_yticks([])
-            # ax.set_zticks([])
             ax.set_box_aspect([1, 1, 1])  # Keep an aspect ratio
             j+=1
 

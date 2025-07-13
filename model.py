@@ -1,3 +1,4 @@
+import e3nn.nn
 import numpy as np
 import torch
 import torch.nn as nn
@@ -8,7 +9,7 @@ from torch_cluster import radius_graph
 
 
 class SE3ScoreModel(nn.Module):
-    def __init__(self, hidden_dim=64, t_embed_dim=128, num_neighbors=10, radius=1, num_basis=32, lmax=5):
+    def __init__(self, hidden_dim=48, t_embed_dim=32, num_neighbors=5, radius=0.7, num_basis=8, lmax=3):
         super().__init__()
 
         self.radius = radius
@@ -19,16 +20,14 @@ class SE3ScoreModel(nn.Module):
         # Time embedding MLP
         self.t_embed = nn.Sequential(
             GaussianFourierProjection(t_embed_dim, scale=30.),
-            nn.Linear(t_embed_dim, t_embed_dim),
-            nn.SiLU(),
             nn.Linear(t_embed_dim, t_embed_dim)
         )
 
         # Define irreps
-        irreps_node_input = Irreps(f"{1 + t_embed_dim}x0e")  # 1 for ones + hidden_dim from t_embed
+        irreps_node_input = Irreps(f"{1}x0e")  # 1 for ones + hidden_dim from t_embed
         irreps_node_attr = Irreps(f"{t_embed_dim}x0e")  # Node attributes
         irreps_edge_attr = Irreps.spherical_harmonics(lmax=self.lmax)  # "1o"
-        irreps_hidden = Irreps(f"{hidden_dim//2}x0e + {hidden_dim//2}x1e + {hidden_dim//4}x2e + {hidden_dim//2}x1o + {hidden_dim//2}x2o")
+        irreps_hidden = Irreps(f"{hidden_dim//2}x0e + {hidden_dim//8}x1e + {hidden_dim//2}x1o + {hidden_dim//8}x2o")
         irreps_output = Irreps("1o")  # Vectorial output (3-dimensional)
 
         self.conv1 = Convolution(
@@ -36,8 +35,8 @@ class SE3ScoreModel(nn.Module):
             irreps_node_attr=irreps_node_attr,
             irreps_edge_attr=irreps_edge_attr,
             irreps_out=irreps_hidden,
-            number_of_basis=num_basis,
-            radial_layers=3,
+            number_of_basis=num_basis + t_embed_dim,
+            radial_layers=1,
             radial_neurons=hidden_dim,
             num_neighbors=num_neighbors
         )
@@ -47,8 +46,8 @@ class SE3ScoreModel(nn.Module):
             irreps_node_attr=irreps_node_attr,
             irreps_edge_attr=irreps_edge_attr,
             irreps_out=irreps_hidden,
-            number_of_basis=num_basis,
-            radial_layers=3,
+            number_of_basis=num_basis + t_embed_dim,
+            radial_layers=1,
             radial_neurons=hidden_dim,
             num_neighbors=num_neighbors
         )
@@ -58,8 +57,8 @@ class SE3ScoreModel(nn.Module):
             irreps_node_attr=irreps_node_attr,
             irreps_edge_attr=irreps_edge_attr,
             irreps_out=irreps_hidden,
-            number_of_basis=num_basis,
-            radial_layers=3,
+            number_of_basis=num_basis + t_embed_dim,
+            radial_layers=1,
             radial_neurons=hidden_dim,
             num_neighbors=num_neighbors
         )
@@ -69,34 +68,26 @@ class SE3ScoreModel(nn.Module):
             irreps_node_attr=irreps_node_attr,
             irreps_edge_attr=irreps_edge_attr,
             irreps_out=irreps_output,
-            number_of_basis=num_basis,
-            radial_layers=3,
+            number_of_basis=num_basis + t_embed_dim,
+            radial_layers=1,
             radial_neurons=hidden_dim,
             num_neighbors=num_neighbors
         )
 
-        self.coord_mlp = nn.Sequential(
-            nn.Linear(3, 64),
-            nn.SiLU(),
-            nn.Linear(64, 3)
-        )
+        self.mlp1 = nn.Linear(t_embed_dim, t_embed_dim)
+        self.mlp2 = nn.Linear(t_embed_dim, t_embed_dim)
+        self.mlp3 = nn.Linear(t_embed_dim, t_embed_dim)
+        self.mlp4 = nn.Linear(t_embed_dim, t_embed_dim)
 
-        self.act = nn.SiLU()
+        self.t_act = nn.SiLU()
+        self.norm_act = e3nn.nn.NormActivation(irreps_hidden, torch.nn.SiLU(), normalize=True)
 
     def forward(self, coords, batch, t):
-        device = coords.device
-        N = coords.shape[0]
-
         # Time embedding
-        t_feat = self.t_embed(t.unsqueeze(-1))  # [B, hidden_dim]
-        t_per_node = t_feat[batch]
+        t_embed = self.t_act(self.t_embed(t.unsqueeze(-1)))
 
         # Node features
-        node_feats = torch.ones(N, 1, device=device)
-        node_input = torch.cat([node_feats, t_per_node], dim=1)  # [N, 1 + hidden_dim]
-
-        # Node attribute (same as t embedding)
-        node_attr = t_per_node  # [N, hidden_dim]
+        node_input = torch.ones(coords.shape[0], 1, device=coords.device)
 
         # Edge attributes
         edge_src, edge_dst = radius_graph(
@@ -120,6 +111,11 @@ class SE3ScoreModel(nn.Module):
             cutoff=True
         )  # [num_edges, number_of_basis]
 
+        # Compute node attribute (same as t embedding) and adding t_feat[edge_batch] to edge length embedding
+        t_feat = self.mlp1(t_embed)
+        node_attr = t_feat[batch]  # t per node: [N, t_embed_dim]
+        edge_time = t_feat[batch[edge_src]]  # t per edge: [num_edges, t_embed_dim]
+
         # Convolution layers
         node_hidden1 = self.conv1(
             node_input=node_input,
@@ -127,9 +123,13 @@ class SE3ScoreModel(nn.Module):
             edge_src=edge_src,
             edge_dst=edge_dst,
             edge_attr=edge_sh, # angular info
-            edge_length_embedded=edge_length_embedded # dist info
+            edge_length_embedded=torch.cat([edge_length_embedded, edge_time], dim=1) # dist info
         )
-        node_hidden1 = self.act(node_hidden1)
+        node_hidden1 = self.norm_act(node_hidden1)
+
+        t_feat = self.mlp2(t_embed)
+        node_attr = t_feat[batch]  # t per node: [N, t_embed_dim]
+        edge_time = t_feat[batch[edge_src]]  # t per edge: [num_edges, t_embed_dim]
 
         node_hidden2 = self.conv2(
             node_input=node_hidden1,
@@ -137,10 +137,14 @@ class SE3ScoreModel(nn.Module):
             edge_src=edge_src,
             edge_dst=edge_dst,
             edge_attr=edge_sh,
-            edge_length_embedded=edge_length_embedded
+            edge_length_embedded=torch.cat([edge_length_embedded, edge_time], dim=1)
         )
-        node_hidden2 = self.act(node_hidden2)
+        node_hidden2 = self.norm_act(node_hidden2)
         node_hidden2 = node_hidden2 + node_hidden1  # residual structure
+
+        t_feat = self.mlp3(t_embed)
+        node_attr = t_feat[batch]  # t per node: [N, t_embed_dim]
+        edge_time = t_feat[batch[edge_src]]  # t per edge: [num_edges, t_embed_dim]
 
         node_hidden3 = self.conv3(
             node_input=node_hidden2,
@@ -148,10 +152,14 @@ class SE3ScoreModel(nn.Module):
             edge_src=edge_src,
             edge_dst=edge_dst,
             edge_attr=edge_sh,
-            edge_length_embedded=edge_length_embedded
+            edge_length_embedded=torch.cat([edge_length_embedded, edge_time], dim=1)
         )
-        node_hidden3 = self.act(node_hidden3)
+        node_hidden3 = self.norm_act(node_hidden3)
         node_hidden3 = node_hidden3 + node_hidden2 # residual structure
+
+        t_feat = self.mlp4(t_embed)
+        node_attr = t_feat[batch]  # t per node: [N, t_embed_dim]
+        edge_time = t_feat[batch[edge_src]]  # t per edge: [num_edges, t_embed_dim]
 
         node_output = self.conv4(
             node_input=node_hidden3,
@@ -159,16 +167,8 @@ class SE3ScoreModel(nn.Module):
             edge_src=edge_src,
             edge_dst=edge_dst,
             edge_attr=edge_sh,
-            edge_length_embedded=edge_length_embedded
+            edge_length_embedded=torch.cat([edge_length_embedded, edge_time], dim=1)
         )
-
-        # Add residual to output
-        mlp_residual = self.coord_mlp(coords)  # [N, 3]
-        node_output = node_output + mlp_residual
-
-        # e3nn_norm = torch.norm(node_output.reshape(len(coords), -1), dim=-1).mean()
-        # mlp_norm = torch.norm(mlp_residual.reshape(len(coords), -1), dim=-1).mean()
-        # print(f'e3nn_norm: {e3nn_norm}, mlp_norm: {mlp_norm}')
 
         return node_output
 
@@ -282,9 +282,9 @@ def get_noise_conditioned_score(model, x_t, batch, t, sde):
         return - model(x_t, batch=batch, t=t) / std
     elif isinstance(model, UNetModel):
         x_t, mask = pad_coords(x_t, batch)
-        score = - model(x_t, t=t)
+        score = model(x_t, t=t)
         score, _ = unpad_coords(score, mask)
-        return score / std
+        return - score / std
     else:
         raise ValueError(f'Model type {type(model)} not recognized.')
 

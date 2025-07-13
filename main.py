@@ -8,7 +8,7 @@ import os
 
 def main():
     # === Configs ===
-    num_epochs = 20
+    num_epochs = 30
     learning_rate = 1e-4
     checkpoint_path = "checkpoints/model.pt"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -18,8 +18,9 @@ def main():
     train_loader, val_loader, test_loader = get_dataloaders(batch_size=32, truncate=True)
 
     # === Model, SDE, Optimizer ===
-    # model = SE3ScoreModel().to(device)
-    model = UNetModel().to(device)
+    model = SE3ScoreModel().to(device)
+    # model = UNetModel().to(device)
+    print(f'Number of learnable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}')
     # sde = VESDE(sigma_min=0.01, sigma_max=50.0)
     # sde = VPSDE(beta_0=0.1, beta_1=20.0)
     sde = CosineVPSDE(s=0.001)

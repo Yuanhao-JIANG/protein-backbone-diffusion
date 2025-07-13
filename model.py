@@ -5,6 +5,8 @@ import torch.nn as nn
 from e3nn.o3 import Irreps, spherical_harmonics
 from e3nn.math import soft_one_hot_linspace
 from e3nn.nn.models.gate_points_2101 import Convolution
+from torch_geometric.nn import GATv2Conv, GINEConv
+from torch_geometric.nn.norm import GraphNorm, LayerNorm
 from torch_cluster import radius_graph
 
 
@@ -19,7 +21,7 @@ class SE3ScoreModel(nn.Module):
 
         # Time embedding MLP
         self.t_embed = nn.Sequential(
-            GaussianFourierProjection(t_embed_dim, scale=30.),
+            GaussianFourierProjection(t_embed_dim),
             nn.Linear(t_embed_dim, t_embed_dim)
         )
 
@@ -173,8 +175,147 @@ class SE3ScoreModel(nn.Module):
         return node_output
 
 
-class UNetModel(nn.Module):
-    def __init__(self, in_channels=3,embed_dim=128):
+class GATv2ScoreModel(nn.Module):
+    def __init__(self, hidden_dim=128, t_embed_dim=128, heads=8, radius=0.7, max_num_neighbors=5):
+        super().__init__()
+        self.radius = radius
+        self.max_num_neighbors = max_num_neighbors
+
+        # Time embedding: RFF (assume GaussianFourierProjection exists)
+        self.time_embed = nn.Sequential(
+            GaussianFourierProjection(t_embed_dim),
+            nn.Linear(t_embed_dim, t_embed_dim)
+        )
+
+        # Coordinate projection
+        self.input_proj = nn.Linear(3, hidden_dim)
+
+        # Four GATv2 layers with residual and normalization
+        self.conv1 = GATv2Conv(hidden_dim * 2, hidden_dim // heads, heads=heads, concat=True)
+        self.norm1 = LayerNorm(hidden_dim)
+
+        self.conv2 = GATv2Conv(hidden_dim * 2, hidden_dim // heads, heads=heads, concat=True)
+        self.norm2 = LayerNorm(hidden_dim)
+
+        self.conv3 = GATv2Conv(hidden_dim * 2, hidden_dim // heads, heads=heads, concat=True)
+        self.norm3 = LayerNorm(hidden_dim)
+
+        self.conv4 = GATv2Conv(hidden_dim * 2, hidden_dim // heads, heads=heads, concat=True)
+        self.norm4 = LayerNorm(hidden_dim)
+
+        self.conv5 = GATv2Conv(hidden_dim * 2, hidden_dim // heads, heads=heads, concat=True)
+        self.norm5 = LayerNorm(hidden_dim)
+
+        # time mlp
+        self.mlp1 = nn.Linear(t_embed_dim, hidden_dim)
+        self.mlp2 = nn.Linear(t_embed_dim, hidden_dim)
+        self.mlp3 = nn.Linear(t_embed_dim, hidden_dim)
+        self.mlp4 = nn.Linear(t_embed_dim, hidden_dim)
+        self.mlp5 = nn.Linear(t_embed_dim, hidden_dim)
+
+        # Output: 3D vector (score)
+        self.output_proj = nn.Linear(hidden_dim, 3)
+
+        self.act = nn.SiLU()
+
+    def forward(self, coords, batch, t):
+        t_feat = self.act(self.time_embed(t[:, None]))  # [B, t_dim]
+
+        h = self.input_proj(coords)  # [N, hidden_dim]
+
+        # Build edge index
+        edge_index = radius_graph(
+            coords,
+            r=self.radius,
+            batch=batch,
+            max_num_neighbors=self.max_num_neighbors
+        )  # edge_index: [2, num_edges]
+
+        # Four residual GATv2 layers
+        t_per_node1 = self.mlp1(t_feat)[batch]  # [N, hidden_dim]
+        x1 = self.conv1(torch.cat([h, t_per_node1], dim=-1), edge_index)
+        h = self.act(self.norm1(x1, batch) + h)
+
+        t_per_node2 = self.mlp2(t_feat)[batch]
+        x2 = self.conv2(torch.cat([h, t_per_node2], dim=-1), edge_index)
+        h = self.act(self.norm2(x2, batch) + h)
+
+        t_per_node3 = self.mlp3(t_feat)[batch]
+        x3 = self.conv3(torch.cat([h, t_per_node3], dim=-1), edge_index)
+        h = self.act(self.norm3(x3, batch) + h)
+
+        t_per_node4 = self.mlp4(t_feat)[batch]
+        x4 = self.conv4(torch.cat([h, t_per_node4], dim=-1), edge_index)
+        h = self.act(self.norm4(x4, batch) + h)
+
+        t_per_node5 = self.mlp5(t_feat)[batch]
+        x5 = self.conv5(torch.cat([h, t_per_node5], dim=-1), edge_index)
+        h = self.act(self.norm5(x5, batch) + h)
+
+        return self.output_proj(h)  # [N, 3]
+
+
+class GINEScoreModel(nn.Module):
+    def __init__(self, hidden_dim=128, t_embed_dim=128, num_layers=7, max_num_neighbors=10, radius=1.0, num_basis=32):
+        super().__init__()
+        self.max_num_neighbors = max_num_neighbors
+        self.radius = radius
+        self.num_basis = num_basis
+
+        self.t_embed = nn.Sequential(
+            GaussianFourierProjection(t_embed_dim, scale=30.),
+            nn.Linear(t_embed_dim, t_embed_dim),
+        )
+
+        self.mlps = nn.ModuleList(
+            [
+                nn.Sequential(
+                    nn.Linear(hidden_dim * 2, hidden_dim),
+                    nn.SiLU(),
+                    nn.Linear(hidden_dim, hidden_dim)
+                )
+                for _ in range(num_layers)
+            ]
+        )
+        self.convs = nn.ModuleList([GINEConv(self.mlps[l], edge_dim=self.num_basis) for l in range(num_layers)])
+        self.norms = nn.ModuleList([GraphNorm(hidden_dim) for _ in range(num_layers)])
+        self.t_mlps = nn.ModuleList([nn.Linear(t_embed_dim, hidden_dim) for _ in range(num_layers)])
+
+        self.input_proj = nn.Linear(3, hidden_dim)
+        self.output_proj = nn.Linear(hidden_dim, 3)
+
+        self.act = nn.SiLU()
+
+    def forward(self, coords, batch, t):
+        t_feat = self.act(self.t_embed(t[:, None]))         # [B, t_dim]
+        h = self.input_proj(coords)  # [N, hidden_dim]
+
+        edge_index = radius_graph(coords, r=self.radius, batch=batch, max_num_neighbors=self.max_num_neighbors)
+        edge_vec = coords[edge_index[0]] - coords[edge_index[1]]
+        edge_length = edge_vec.norm(dim=-1)
+
+        edge_attr = soft_one_hot_linspace(
+            edge_length,
+            start=0.0,
+            end=self.radius,
+            number=self.num_basis,
+            basis='gaussian',
+            cutoff=True
+        )  # [num_edges, num_basis]
+
+        for conv, norm, t_mlp in zip(self.convs, self.norms, self.t_mlps):
+            t_per_node = t_mlp(t_feat)[batch]
+
+            h_res = h
+            h = conv(torch.cat([h, t_per_node], dim=-1), edge_index, edge_attr) # mlp input should change to hidden_dim * 2
+            # h = conv(h + t_per_node, edge_index, edge_attr)
+            h = self.act(norm(h, batch) + h_res)
+
+        return self.output_proj(h)
+
+
+class UNetScoreModel(nn.Module):
+    def __init__(self, in_channels=3, embed_dim=128):
         super().__init__()
         self.channels = [64, 64, 128, 128]
 
@@ -278,9 +419,9 @@ class GaussianFourierProjection(nn.Module):
 def get_noise_conditioned_score(model, x_t, batch, t, sde):
     t_nodes = t[batch]  # [total_nodes]
     _, std = sde.marginal_prob(torch.zeros_like(x_t), t_nodes)
-    if isinstance(model, SE3ScoreModel):
+    if isinstance(model, SE3ScoreModel) or isinstance(model, GATv2ScoreModel) or isinstance(model, GINEScoreModel):
         return - model(x_t, batch=batch, t=t) / std
-    elif isinstance(model, UNetModel):
+    elif isinstance(model, UNetScoreModel):
         x_t, mask = pad_coords(x_t, batch)
         score = model(x_t, t=t)
         score, _ = unpad_coords(score, mask)

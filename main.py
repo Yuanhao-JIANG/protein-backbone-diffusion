@@ -1,5 +1,5 @@
 import torch
-from model import SE3ScoreModel, UNetModel
+from model import SE3ScoreModel, UNetScoreModel, GATv2ScoreModel, GINEScoreModel
 from sde import VESDE, VPSDE, CosineVPSDE
 from ds_utils import get_dataloaders
 from train import train
@@ -8,9 +8,8 @@ import os
 
 def main():
     # === Configs ===
-    num_epochs = 30
+    num_epochs = 100
     learning_rate = 1e-4
-    checkpoint_path = "checkpoints/model.pt"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)
 
@@ -18,8 +17,10 @@ def main():
     train_loader, val_loader, test_loader = get_dataloaders(batch_size=32, truncate=True)
 
     # === Model, SDE, Optimizer ===
-    model = SE3ScoreModel().to(device)
-    # model = UNetModel().to(device)
+    # model = SE3ScoreModel().to(device)
+    # model = UNetScoreModel().to(device)
+    # model = GATv2ScoreModel().to(device)
+    model = GINEScoreModel().to(device)
     print(f'Number of learnable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}')
     # sde = VESDE(sigma_min=0.01, sigma_max=50.0)
     # sde = VPSDE(beta_0=0.1, beta_1=20.0)
@@ -28,6 +29,7 @@ def main():
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=1e-5)
 
     # === Make folder if needed ===
+    checkpoint_path = f"checkpoints/{model.__class__.__name__}.pt"
     os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
 
     # === Train ===

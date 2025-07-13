@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 
 @torch.no_grad()
-def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.01, n_corr_steps=2, eps=1e-3, plot=False, device='cpu'):
+def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.16, n_corr_steps=2, eps=1e-3, plot=False, device='cpu'):
     """
     Args:
         model: trained score model
@@ -44,7 +44,6 @@ def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.01, n_corr_step
 
     for i in range(num_steps):
         t_i = t_array[i]
-        print(f't = {t_i}')
         t_i_batch = t_i.expand(len(lengths))
 
         # --- (4) Corrector step (Langevin)
@@ -68,7 +67,7 @@ def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.01, n_corr_step
         z = torch.randn_like(x)
         x = x + drift * dt + diffusion * torch.sqrt(-dt) * z
 
-        print(f"Step {i}, x min: {x.abs().min().item():.3f}, x max: {x.abs().max().item():.3f}, mean: {x.norm(dim=-1).mean().item():.3f}")
+        print(f"Time {t_i}, x min: {x.abs().min().item():.3f}, x max: {x.abs().max().item():.3f}, mean: {x.norm(dim=-1).mean().item():.3f}")
 
         if plot and (i % 60 == 0 or i == num_steps - 1):
             x_t = x[batch == 0].cpu().numpy()

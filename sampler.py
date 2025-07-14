@@ -1,6 +1,7 @@
 import torch
 from model import get_noise_conditioned_score
 import matplotlib.pyplot as plt
+from model import SE3ScoreModel
 
 
 @torch.no_grad()
@@ -37,8 +38,8 @@ def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.16, n_corr_step
     dt = torch.tensor(-1.0 / num_steps)
 
     if plot:
-        n_cols = 6
-        n_rows = 3
+        n_cols = 5
+        n_rows = 2
         fig = plt.figure(figsize=(5 * n_cols, 4 * n_rows))
         j = 0
 
@@ -52,11 +53,10 @@ def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.16, n_corr_step
             noise = torch.randn_like(x)
             grad_norm = torch.norm(score.reshape(total_nodes, -1), dim=-1).mean()
             noise_norm = torch.norm(noise.reshape(total_nodes, -1), dim=-1).mean()
-            # step_size = (snr * noise_norm / grad_norm) ** 2 * 2 * sde.beta(t_i)
-            step_size = (snr * noise_norm / grad_norm) ** 2 * 2
-            print(f'step_size = {step_size}, grad_norm = {grad_norm}')
-            # step_size = torch.tensor(0.01)
-
+            if isinstance(model, SE3ScoreModel):
+                step_size = torch.tensor(0.01)
+            else:
+                step_size = (snr * noise_norm / grad_norm) ** 2 * 2
             x = x + step_size * score + torch.sqrt(2 * step_size) * noise
 
         # --- (5) Predictor step (Euler–Maruyama)
@@ -67,9 +67,9 @@ def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.16, n_corr_step
         z = torch.randn_like(x)
         x = x + drift * dt + diffusion * torch.sqrt(-dt) * z
 
-        print(f"Time {t_i}, x min: {x.abs().min().item():.3f}, x max: {x.abs().max().item():.3f}, mean: {x.norm(dim=-1).mean().item():.3f}")
+        print(f"Time {t_i:.3f}, step_size = {step_size:.4f}, grad_norm = {grad_norm:.4f}, x min: {x.abs().min().item():.3f}, x max: {x.abs().max().item():.3f}, mean: {x.norm(dim=-1).mean().item():.3f}")
 
-        if plot and (i % 60 == 0 or i == num_steps - 1):
+        if plot and (i % 120 == 0 or i == num_steps - 1):
             x_t = x[batch == 0].cpu().numpy()
             ax = fig.add_subplot(n_rows, n_cols, j + 1, projection='3d')
             ax.plot(x_t[:, 0], x_t[:, 1], x_t[:, 2], '-o', linewidth=2, markersize=4)

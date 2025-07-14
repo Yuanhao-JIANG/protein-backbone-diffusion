@@ -11,7 +11,7 @@ from torch_cluster import radius_graph
 
 
 class SE3ScoreModel(nn.Module):
-    def __init__(self, hidden_dim=48, t_embed_dim=32, num_neighbors=5, radius=0.7, num_basis=8, lmax=3):
+    def __init__(self, hidden_dim=56, t_embed_dim=32, num_neighbors=10, radius=1.0, num_basis=16, lmax=3):
         super().__init__()
 
         self.radius = radius

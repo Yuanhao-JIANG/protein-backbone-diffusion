@@ -8,6 +8,7 @@
 }
 \usepackage[raggedright]{titlesec}
 \usepackage[breaklinks]{hyperref}
+\usepackage{cleveref}
 \geometry{margin=1in}
 % \graphicspath{folderA}
 
@@ -77,9 +78,27 @@ Use Variance Preserving (VP) SDE \cite{song2020score}
 \end{align}
 with closed form posterior
 \begin{align*}
-    p\left(x_t|x_0\right)=\mathcal{N}\left(x_t:\:x_0e^{-\frac{1}{2}\int_0^t\beta(s)ds},\left(1-e^{-\frac{1}{2}\int_0^t\beta(s)ds}\right)I\right)
+    p\left(x_t|x_0\right)=\mathcal{N}\left(x_t:\:x_0e^{-\frac{1}{2}\int_0^t\beta(s)ds},\left(1-e^{-\int_0^t\beta(s)ds}\right)I\right)
 \end{align*}
-for data perturbation.
+for data perturbation, i.e.,
+\begin{align}\label{eq:perturbation_ddpm}
+    x_t=\sqrt{e^{-\int_0^t\beta(s)ds}}x_0+\sqrt{1-e^{-\int_0^t\beta(s)ds}}z_t,\quad z_t\sim\mathcal{N}\left(0, I\right).
+\end{align}
+Notice that \cref{eq:perturbation_ddpm} is exactly the discrete perturbation scheme in DDPM \cite{ho2020denoising}. In practice, linear \(\beta(t)\) as used in \cite{song2020score} perturb the backbone too fast, the perturbed samples are nearly random noise after a small time \(t\). To slow down perturbation, I used a cosine noise schedule as proposed in \cite{nicholImprovedDenoisingDiffusion2021}, where
+\begin{align*}
+    x_t=\sqrt{\alpha_t}x_0+\sqrt{1-\alpha_t}z_t,\quad\alpha_t=\cos^2\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right),\quad z_t\sim\mathcal{N}\left(0, I\right).
+\end{align*}
+This is a DDPM perturbation scheme, the corresponding SDE is given by solving
+\begin{align*}
+    \alpha_t=\cos^2\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right)=e^{-\int_0^t\beta(s)ds},
+\end{align*}
+it follows that
+\begin{align*}
+    \beta(t)
+    &=-\frac{d}{dt}\log\cos^2\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right)\\
+    &=-\frac{1}{\cos^2\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right)}\left[2\cos\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right)\right]\left[-\sin\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right)\right]\frac{d}{dt}\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right)\\
+    &=\frac{\pi}{1+s}\tan\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right).
+\end{align*}
 \subsection{Denoising Score Matching}
 Ideally, for each time \(t\), the score function of \(x_t\) can be trained via
 \begin{align*}

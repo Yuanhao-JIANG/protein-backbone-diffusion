@@ -2,12 +2,16 @@ import e3nn.nn
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+# from e3nn.nn import BatchNorm
 from e3nn.o3 import Irreps, spherical_harmonics
 from e3nn.math import soft_one_hot_linspace
 from e3nn.nn.models.gate_points_2101 import Convolution
-from torch_geometric.nn import GATv2Conv, GINEConv
-from torch_geometric.nn.norm import GraphNorm, LayerNorm
-from torch_cluster import radius_graph
+from torch_geometric.nn import GATv2Conv, GINEConv, PNAConv, TransformerConv, GPSConv
+from torch_geometric.nn.models.basic_gnn import MLP
+from torch_geometric.nn.norm import BatchNorm, GraphNorm, LayerNorm, InstanceNorm, GraphSizeNorm, PairNorm, MeanSubtractionNorm
+from torch_geometric.nn import radius_graph
+from torch_geometric.utils import degree
 
 
 class SE3ScoreModel(nn.Module):
@@ -256,7 +260,7 @@ class GATv2ScoreModel(nn.Module):
 
 
 class GINEScoreModel(nn.Module):
-    def __init__(self, hidden_dim=128, t_embed_dim=128, num_layers=7, max_num_neighbors=10, radius=1.0, num_basis=32):
+    def __init__(self, hidden_dim=256, t_embed_dim=128, num_layers=5, max_num_neighbors=30, radius=1.5, num_basis=32):
         super().__init__()
         self.max_num_neighbors = max_num_neighbors
         self.radius = radius
@@ -277,8 +281,8 @@ class GINEScoreModel(nn.Module):
                 for _ in range(num_layers)
             ]
         )
-        self.convs = nn.ModuleList([GINEConv(self.mlps[l], edge_dim=self.num_basis) for l in range(num_layers)])
-        self.norms = nn.ModuleList([GraphNorm(hidden_dim) for _ in range(num_layers)])
+        self.convs = nn.ModuleList([GINEConv(self.mlps[l], train_eps=True, edge_dim=self.num_basis + 3) for l in range(num_layers)])
+        self.norms = nn.ModuleList([GraphNorm(in_channels=hidden_dim) for _ in range(num_layers)])
         self.t_mlps = nn.ModuleList([nn.Linear(t_embed_dim, hidden_dim) for _ in range(num_layers)])
 
         self.input_proj = nn.Linear(3, hidden_dim)
@@ -292,16 +296,21 @@ class GINEScoreModel(nn.Module):
 
         edge_index = radius_graph(coords, r=self.radius, batch=batch, max_num_neighbors=self.max_num_neighbors)
         edge_vec = coords[edge_index[0]] - coords[edge_index[1]]
+        edge_dir = F.normalize(edge_vec, dim=-1)
         edge_length = edge_vec.norm(dim=-1)
 
-        edge_attr = soft_one_hot_linspace(
+        # Positional encoding using edge length (already exists)
+        edge_scalar = soft_one_hot_linspace(
             edge_length,
             start=0.0,
             end=self.radius,
             number=self.num_basis,
             basis='gaussian',
             cutoff=True
-        )  # [num_edges, num_basis]
+        ) # [num_edges, num_basis]
+
+        # Combine with direction vector
+        edge_attr = torch.cat([edge_scalar, edge_dir], dim=-1)  # [num_edges, num_basis + 3]
 
         for conv, norm, t_mlp in zip(self.convs, self.norms, self.t_mlps):
             t_per_node = t_mlp(t_feat)[batch]
@@ -314,10 +323,334 @@ class GINEScoreModel(nn.Module):
         return self.output_proj(h)
 
 
+class PNAScoreModel(nn.Module):
+    def __init__(self, train_loader, hidden_dim=128, t_embed_dim=128, num_layers=5, max_num_neighbors=30, radius=1.5, num_basis=16, aggregators=None, scalers=None, deg=None):  # deg is required by PNAConv
+        super().__init__()
+
+        self.radius = radius
+        self.max_num_neighbors = max_num_neighbors
+        self.num_basis = num_basis
+        if scalers is None:
+            self.scalers = ['identity', 'amplification', 'attenuation']
+        if aggregators is None:
+            self.aggregators = ['mean', 'max', 'min', 'std']
+        if deg is None:
+            self.deg = self.compute_degree_histogram(train_loader)
+
+        self.t_embed = nn.Sequential(
+            GaussianFourierProjection(t_embed_dim, scale=30.),
+            nn.Linear(t_embed_dim, t_embed_dim),
+        )
+
+        self.input_proj = nn.Linear(3, hidden_dim)
+        self.output_proj = nn.Linear(hidden_dim, 3)
+
+        self.t_mlps = nn.ModuleList([
+            nn.Linear(t_embed_dim, hidden_dim) for _ in range(num_layers)
+        ])
+
+        self.mlps = nn.ModuleList([
+            MLP([hidden_dim, hidden_dim], act='silu') for _ in range(num_layers)
+        ])
+
+        self.convs = nn.ModuleList([
+            PNAConv(in_channels=hidden_dim,
+                out_channels=hidden_dim,
+                aggregators=self.aggregators,
+                scalers=self.scalers,
+                deg=self.deg,
+                edge_dim=num_basis,
+                towers=1,
+                pre_layers=1,
+                post_layers=1,
+                divide_input=False)
+            for _ in range(num_layers)
+        ])
+
+        self.norms = nn.ModuleList([
+            LayerNorm(hidden_dim) for _ in range(num_layers)
+        ])
+
+        self.act = nn.SiLU()
+
+    def compute_degree_histogram(self, loader):
+        radius = self.radius
+        max_nodes = self.max_num_neighbors * 2
+        deg = torch.zeros(max_nodes, dtype=torch.long)
+
+        print("Computing degree histogram for PNA score model...")
+        for batch in loader:
+            # Flatten: from List[Tensor (L_i, 3)] → Tensor [N, 3]
+            coords = torch.cat(batch, dim=0)
+            batch_idx = [torch.full((x.shape[0],), i, dtype=torch.long) for i, x in enumerate(batch)]
+            batch_tensor = torch.cat(batch_idx, dim=0)
+
+            # Graph: only edge_index needed
+            edge_index = radius_graph(coords, r=radius, batch=batch_tensor)
+
+            # Degree of destination nodes
+            deg_batch = degree(edge_index[1], num_nodes=coords.size(0), dtype=torch.long)
+            deg += torch.bincount(deg_batch, minlength=deg.numel())
+        print("Done.")
+
+        return deg
+
+    def forward(self, coords, batch, t):
+        t_feat = self.act(self.t_embed(t[:, None]))  # [B, t_embed_dim]
+        h = self.input_proj(coords)  # [N, hidden_dim]
+
+        edge_index = radius_graph(coords, r=self.radius, batch=batch,
+                                  max_num_neighbors=self.max_num_neighbors)
+        edge_vec = coords[edge_index[0]] - coords[edge_index[1]]
+        edge_length = edge_vec.norm(dim=-1)
+
+        edge_attr = soft_one_hot_linspace(
+            edge_length,
+            start=0.0,
+            end=self.radius,
+            number=self.num_basis,
+            basis='gaussian',
+            cutoff=True
+        )
+
+        for conv, norm, t_mlp in zip(self.convs, self.norms, self.t_mlps):
+            t_per_node = t_mlp(t_feat)[batch]
+
+            h_res = h
+            h = conv(h + t_per_node, edge_index, edge_attr)
+            h = self.act(norm(h, batch) + h_res)
+
+        return self.output_proj(h)
+
+
+class TransformerScoreModel(nn.Module):
+    def __init__(self, hidden_dim=128, pos_embed_dim=128, t_embed_dim=128, num_layers=4, heads=8, max_num_neighbors=30, radius=5, num_basis=4):
+        super().__init__()
+        self.max_num_neighbors = max_num_neighbors
+        self.radius = radius
+        self.num_basis = num_basis
+        self.heads = heads
+        self.cat_embeddings = True
+
+        # position embedding
+        self.pos_embed = nn.Sequential(
+            nn.Linear(1, pos_embed_dim),
+            nn.SiLU(),
+            nn.Linear(pos_embed_dim, pos_embed_dim)
+        )
+
+        # Time embedding
+        self.t_embed = nn.Sequential(
+            GaussianFourierProjection(t_embed_dim, scale=30.),
+            nn.Linear(t_embed_dim, t_embed_dim),
+        )
+
+        # Time MLPs per layer
+        self.t_mlps = nn.ModuleList([
+            nn.Linear(t_embed_dim, t_embed_dim) for _ in range(num_layers)
+        ])
+
+        # TransformerConv layers
+        if self.cat_embeddings:
+            in_channels = hidden_dim + pos_embed_dim + t_embed_dim
+        else:
+            in_channels = hidden_dim
+        self.convs = nn.ModuleList([
+            TransformerConv(
+                in_channels=in_channels,
+                out_channels=hidden_dim // heads,
+                heads=heads,
+                concat=True,
+                beta=True,
+                # dropout=0.2,
+                edge_dim=self.num_basis + 3  # edge_attr not used for now
+            )
+            for _ in range(num_layers)
+        ])
+
+        # Norm layers
+        self.norms = nn.ModuleList([
+            BatchNorm(hidden_dim) for _ in range(num_layers)
+        ])
+
+        # Input/output projection
+        self.input_proj = nn.Linear(3, hidden_dim)
+        self.output_proj = nn.Linear(hidden_dim, 3)
+
+        self.act = nn.SiLU()
+
+    def forward(self, coords, batch, t):
+        """
+        Args:
+            coords: [N, 3] - all coordinates in batch
+            batch: [N] - batch index for each node
+            t: [B] - time for each structure
+        """
+        # Compute per-node index within its graph
+        num_graphs = batch.max().item() + 1
+        pos_index = torch.empty_like(batch, dtype=torch.float)
+        for i in range(num_graphs):
+            mask = (batch == i)
+            count = mask.sum()
+            pos_index[mask] = torch.linspace(0, 1, steps=count, device=coords.device)
+        pos_feat = self.pos_embed(pos_index[:, None])  # [N, pos_embed_dim]
+
+        # Time embedding
+        t_feat = self.act(self.t_embed(t[:, None]))  # [B, t_embed_dim]
+
+        # Node features
+        h = self.input_proj(coords)  # [N, hidden_dim]
+
+        # Build radius graph to obtain edge index
+        edge_index = radius_graph(coords, r=self.radius, batch=batch, max_num_neighbors=self.max_num_neighbors)
+
+        #################################################################################
+        ############## check neighborhood number within self.radius #####################
+        # # edge_index[0] contains the source nodes (i.e., each node receiving a message)
+        # src = edge_index[0]
+        #
+        # # Compute degrees: how many edges point to each node
+        # num_nodes = coords.size(0)
+        # node_degree = degree(src, num_nodes=num_nodes)
+        #
+        # # Print or analyze
+        # print(f"Max: {node_degree.max():.0f}, Min: {node_degree.min():.0f}")
+        #################################################################################
+        #################################################################################
+
+        # edge attributes
+        edge_vec = coords[edge_index[0]] - coords[edge_index[1]]
+        edge_dir = F.normalize(edge_vec, dim=-1)
+        edge_length = edge_vec.norm(dim=-1)
+        edge_scalar = soft_one_hot_linspace(
+            edge_length,
+            start=0.0,
+            end=self.radius,
+            number=self.num_basis,
+            basis='gaussian',
+            cutoff=True
+        )  # [num_edges, num_basis]
+        # Combine with direction vector
+        edge_attr = torch.cat([edge_scalar, edge_dir], dim=-1)  # [num_edges, num_basis + 3]
+
+        for conv, norm, t_mlp in zip(self.convs, self.norms, self.t_mlps):
+            t_per_node = t_mlp(t_feat)[batch]  # [N, t_embed_dim]
+
+            # Residual
+            h_res = h
+
+            # Concat time + feature
+            if self.cat_embeddings:
+                h = conv(torch.cat([h, pos_feat, t_per_node], dim=-1), edge_index, edge_attr)
+            else:
+                h = conv(h + pos_feat + t_per_node, edge_index, edge_attr)
+
+            # Normalization + residual
+            # h = self.act(norm(h, batch) + h_res)
+            h = self.act(norm(h) + h_res) # for batch norm
+
+        return self.output_proj(h)
+
+
+class GPSScoreModel(nn.Module):
+    def __init__(self, hidden_dim=128, pos_embed_dim=128, t_embed_dim=128, num_layers=4, heads=8, max_num_neighbors=30, radius=5.0, num_basis=4):
+        super().__init__()
+        self.hidden_dim = hidden_dim
+        self.radius = radius
+        self.max_num_neighbors = max_num_neighbors
+        self.num_basis = num_basis
+        self.heads = heads
+
+        self.concat_proj = nn.Linear(hidden_dim + pos_embed_dim + t_embed_dim, hidden_dim)
+
+        # Positional encoding via per-node order in each graph
+        self.pos_embed = nn.Sequential(
+            nn.Linear(1, pos_embed_dim),
+            nn.SiLU(),
+            nn.Linear(pos_embed_dim, pos_embed_dim)
+        )
+
+        # Time embedding
+        self.t_embed = nn.Sequential(
+            GaussianFourierProjection(t_embed_dim, scale=30.),
+            nn.Linear(t_embed_dim, t_embed_dim),
+        )
+
+        # Per-layer time projection
+        self.t_mlps = nn.ModuleList([
+            nn.Linear(t_embed_dim, t_embed_dim) for _ in range(num_layers)
+        ])
+
+        # Input/output projections
+        self.input_proj = nn.Linear(3, hidden_dim)
+        self.output_proj = nn.Linear(hidden_dim, 3)
+
+        # GPS layers with GINE as local conv
+        self.convs = nn.ModuleList()
+        for _ in range(num_layers):
+            mlp = nn.Sequential(
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.SiLU(),
+                nn.Linear(hidden_dim, hidden_dim)
+            )
+            gine = GINEConv(nn=mlp, edge_dim=num_basis + 3)
+
+            self.convs.append(
+                GPSConv(
+                    channels=hidden_dim,
+                    conv=gine,
+                    heads=heads,
+                    attn_type='multihead',
+                    act='SiLU'
+                )
+            )
+
+    def forward(self, coords, batch, t):
+        # coords: [N, 3], batch: [N], t: [B]
+
+        # Positional encoding (based on relative position in the chain)
+        num_graphs = batch.max().item() + 1
+        pos_index = torch.empty_like(batch, dtype=torch.float)
+        for i in range(num_graphs):
+            mask = batch == i
+            pos_index[mask] = torch.linspace(0, 1, steps=mask.sum(), device=coords.device)
+        pos_feat = self.pos_embed(pos_index[:, None])  # [N, pos_embed_dim]
+
+        # Time embedding
+        t_feat = self.t_embed(t[:, None])  # [B, t_embed_dim]
+
+        # Input projection
+        h = self.input_proj(coords)  # [N, hidden_dim]
+
+        # Compute edge_index
+        edge_index = radius_graph(coords, r=self.radius, batch=batch, max_num_neighbors=self.max_num_neighbors)
+
+        # Edge attributes: edge length + direction
+        edge_vec = coords[edge_index[0]] - coords[edge_index[1]]
+        edge_dir = F.normalize(edge_vec, dim=-1)
+        edge_length = edge_vec.norm(dim=-1)
+        edge_scalar = soft_one_hot_linspace(
+            edge_length,
+            start=0.0,
+            end=self.radius,
+            number=self.num_basis,
+            basis='gaussian',
+            cutoff=True
+        )
+        edge_attr = torch.cat([edge_scalar, edge_dir], dim=-1)
+
+        for conv, t_mlp in zip(self.convs, self.t_mlps):
+            t_per_node = t_mlp(t_feat)[batch]
+            h_input = self.concat_proj(torch.cat([h, pos_feat, t_per_node], dim=-1))  # [N, hidden_dim]
+            h = conv(h_input, edge_index, batch=batch, edge_attr=edge_attr)
+
+        return self.output_proj(h)  # [N, 3]
+
+
 class UNetScoreModel(nn.Module):
     def __init__(self, in_channels=3, embed_dim=128):
         super().__init__()
-        self.channels = [64, 64, 128, 128]
+        self.channels = [64, 128, 128, 128]
 
         # encoding layers
         self.conv1 = nn.Conv1d(in_channels, self.channels[0], kernel_size=3, padding=2)
@@ -419,13 +752,21 @@ class GaussianFourierProjection(nn.Module):
 def get_noise_conditioned_score(model, x_t, batch, t, sde):
     t_nodes = t[batch]  # [total_nodes]
     _, std = sde.marginal_prob(torch.zeros_like(x_t), t_nodes)
-    if isinstance(model, SE3ScoreModel) or isinstance(model, GATv2ScoreModel) or isinstance(model, GINEScoreModel):
-        return - model(x_t, batch=batch, t=t) / std
-    elif isinstance(model, UNetScoreModel):
+
+    if isinstance(model, UNetScoreModel):
         x_t, mask = pad_coords(x_t, batch)
         score = model(x_t, t=t)
         score, _ = unpad_coords(score, mask)
         return - score / std
+    elif (
+            isinstance(model, SE3ScoreModel) or
+            isinstance(model, GATv2ScoreModel) or
+            isinstance(model, GINEScoreModel) or
+            isinstance(model, PNAScoreModel) or
+            isinstance(model, TransformerScoreModel) or
+            isinstance(model, GPSScoreModel)
+    ):
+        return - model(x_t, batch=batch, t=t) / std
     else:
         raise ValueError(f'Model type {type(model)} not recognized.')
 

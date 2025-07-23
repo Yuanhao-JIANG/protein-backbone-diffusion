@@ -42,7 +42,7 @@ def main():
     model.load_state_dict(torch.load(checkpoint_path, map_location=device))
     model.to(device)
     lengths = [23, 23]  # Sample 2 domains of different lengths
-    coords, batch = pc_sampler_batch(model, sde, lengths=lengths, n_corr_steps=1, plot=True, device=device)
+    coords, batch = pc_sampler_batch(model, sde, lengths=lengths, n_corr_steps=3, plot=True, device=device)
 
 if __name__ == "__main__":
     main()

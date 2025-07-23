@@ -5,7 +5,7 @@ from model import SE3ScoreModel
 
 
 @torch.no_grad()
-def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.2, n_corr_steps=2, eps=1e-3, plot=False, device='cpu'):
+def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.15, n_corr_steps=2, eps=1e-3, plot=False, device='cpu'):
     """
     Args:
         model: trained score model
@@ -67,7 +67,7 @@ def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.2, n_corr_steps
         z = torch.randn_like(x)
         x = x + drift * dt + diffusion * torch.sqrt(-dt) * z
 
-        print(f"Time {t_i:.3f}, step_size = {step_size:.5f}, grad_norm = {grad_norm:.4f}, x min: {x.abs().min().item():.3f}, x max: {x.abs().max().item():.3f}, mean: {x.norm(dim=-1).mean().item():.3f}")
+        print(f"Time {t_i:.3f}, step_size = {step_size:.6f}, grad_norm = {grad_norm:.4f}, x min: {x.abs().min().item():.3f}, x max: {x.abs().max().item():.3f}, mean: {x.norm(dim=-1).mean().item():.3f}")
 
         if plot and (i % 120 == 0 or i == num_steps - 1):
             x_t = x[batch == 0].cpu().numpy()
@@ -78,7 +78,7 @@ def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.2, n_corr_steps
             j+=1
 
     plt.tight_layout()
-    plt.savefig(f'./figs/denoising_{len(x_t)}.png')
+    plt.savefig(f'./figs/{model.__class__.__name__}_denoising_{len(x_t)}.png')
     plt.show()
 
 

@@ -424,7 +424,7 @@ class PNAScoreModel(nn.Module):
 
 
 class TransformerScoreModel(nn.Module):
-    def __init__(self, hidden_dim=128, pos_embed_dim=128, t_embed_dim=128, num_layers=4, heads=8, max_num_neighbors=30, radius=5, num_basis=4):
+    def __init__(self, hidden_dim=128, pos_embed_dim=128, t_embed_dim=128, t_edge_proj_dim=16, num_layers=4, heads=8, max_num_neighbors=30, radius=5, num_basis=16):
         super().__init__()
         self.max_num_neighbors = max_num_neighbors
         self.radius = radius
@@ -434,16 +434,22 @@ class TransformerScoreModel(nn.Module):
 
         # position embedding
         self.pos_embed = nn.Sequential(
-            nn.Linear(1, pos_embed_dim),
-            nn.SiLU(),
+            SinusoidalEncoding(embed_dim=pos_embed_dim),
             nn.Linear(pos_embed_dim, pos_embed_dim)
         )
 
+        # position MLPs per layer
+        self.pos_mlps = nn.ModuleList([
+            nn.Linear(pos_embed_dim, pos_embed_dim) for _ in range(num_layers)
+        ])
+
         # Time embedding
         self.t_embed = nn.Sequential(
-            GaussianFourierProjection(t_embed_dim, scale=30.),
+            GaussianFourierProjection(t_embed_dim, scale=25.),
             nn.Linear(t_embed_dim, t_embed_dim),
         )
+
+        self.t_edge_proj = nn.Linear(t_embed_dim, t_edge_proj_dim)
 
         # Time MLPs per layer
         self.t_mlps = nn.ModuleList([
@@ -462,20 +468,27 @@ class TransformerScoreModel(nn.Module):
                 heads=heads,
                 concat=True,
                 beta=True,
-                # dropout=0.2,
-                edge_dim=self.num_basis + 3  # edge_attr not used for now
+                dropout=0.1,
+                edge_dim=self.num_basis + 3 + t_edge_proj_dim  # edge_attr not used for now
             )
             for _ in range(num_layers)
         ])
 
         # Norm layers
         self.norms = nn.ModuleList([
-            BatchNorm(hidden_dim) for _ in range(num_layers)
+            GraphNorm(hidden_dim) for _ in range(num_layers)
         ])
+        # self.norms = nn.ModuleList([
+        #     MeanSubtractionNorm() for _ in range(num_layers)
+        # ])
 
         # Input/output projection
         self.input_proj = nn.Linear(3, hidden_dim)
-        self.output_proj = nn.Linear(hidden_dim, 3)
+        self.output_proj = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.SiLU(),
+            nn.Linear(hidden_dim, 3)
+        )
 
         self.act = nn.SiLU()
 
@@ -493,7 +506,7 @@ class TransformerScoreModel(nn.Module):
             mask = (batch == i)
             count = mask.sum()
             pos_index[mask] = torch.linspace(0, 1, steps=count, device=coords.device)
-        pos_feat = self.pos_embed(pos_index[:, None])  # [N, pos_embed_dim]
+        pos_feat = self.act(self.pos_embed(pos_index[:, None]))  # [N, pos_embed_dim]
 
         # Time embedding
         t_feat = self.act(self.t_embed(t[:, None]))  # [B, t_embed_dim]
@@ -530,24 +543,27 @@ class TransformerScoreModel(nn.Module):
             basis='gaussian',
             cutoff=True
         )  # [num_edges, num_basis]
+        t_edge = t_feat[batch][edge_index[0]]   # [num_edges, t_embed_dim]
+        t_edge = self.t_edge_proj(t_edge)   # [num_edges, t_edge_proj_dim]
         # Combine with direction vector
-        edge_attr = torch.cat([edge_scalar, edge_dir], dim=-1)  # [num_edges, num_basis + 3]
+        edge_attr = torch.cat([edge_scalar, edge_dir, t_edge], dim=-1)  # [num_edges, num_basis + 3 + t_edge_proj_dim]
 
-        for conv, norm, t_mlp in zip(self.convs, self.norms, self.t_mlps):
+        for conv, norm, pos_mlp, t_mlp in zip(self.convs, self.norms, self.pos_mlps, self.t_mlps):
             t_per_node = t_mlp(t_feat)[batch]  # [N, t_embed_dim]
+            pos = pos_mlp(pos_feat)
 
             # Residual
             h_res = h
 
             # Concat time + feature
             if self.cat_embeddings:
-                h = conv(torch.cat([h, pos_feat, t_per_node], dim=-1), edge_index, edge_attr)
+                h = conv(torch.cat([h, pos, t_per_node], dim=-1), edge_index, edge_attr)
             else:
                 h = conv(h + pos_feat + t_per_node, edge_index, edge_attr)
 
             # Normalization + residual
-            # h = self.act(norm(h, batch) + h_res)
-            h = self.act(norm(h) + h_res) # for batch norm
+            h = self.act(norm(h, batch) + h_res)
+            # h = self.act(norm(h) + h_res) # for batch norm
 
         return self.output_proj(h)
 
@@ -733,6 +749,20 @@ class UNetScoreModel(nn.Module):
         # print(f'out: {out.shape}')
 
         return out
+
+
+class SinusoidalEncoding(nn.Module):
+    def __init__(self, embed_dim=128):
+        super().__init__()
+        self.embed_dim = embed_dim
+
+    def forward(self, pos_index):
+        i = torch.arange(self.embed_dim, device=pos_index.device)
+        angle_rates = 1 / torch.pow(10000, (2 * (i // 2)) / self.embed_dim)
+        angle_rads = pos_index * angle_rates
+        angle_rads[:, 0::2] = torch.sin(angle_rads[:, 0::2])
+        angle_rads[:, 1::2] = torch.cos(angle_rads[:, 1::2])
+        return angle_rads
 
 
 class GaussianFourierProjection(nn.Module):

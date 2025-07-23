@@ -8,7 +8,7 @@ import os
 
 def main():
     # === Configs ===
-    num_epochs = 100
+    num_epochs = 150
     learning_rate = 1e-4
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)
@@ -41,7 +41,7 @@ def main():
     # === Sampling ===
     model.load_state_dict(torch.load(checkpoint_path, map_location=device))
     model.to(device)
-    lengths = [20, 20]  # Sample 2 domains of different lengths
+    lengths = [23, 23]  # Sample 2 domains of different lengths
     coords, batch = pc_sampler_batch(model, sde, lengths=lengths, n_corr_steps=1, plot=True, device=device)
 
 if __name__ == "__main__":

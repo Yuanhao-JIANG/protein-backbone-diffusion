@@ -41,6 +41,18 @@
   year={2020}
 }
 
+@inproceedings{tancikFourierFeaturesLet2020,
+  title = {Fourier {{Features Let Networks Learn High Frequency Functions}} in {{Low Dimensional Domains}}},
+  booktitle = {Advances in {{Neural Information Processing Systems}}},
+  author = {Tancik, Matthew and Srinivasan, Pratul and Mildenhall, Ben and {Fridovich-Keil}, Sara and Raghavan, Nithin and Singhal, Utkarsh and Ramamoorthi, Ravi and Barron, Jonathan and Ng, Ren},
+  year = {2020},
+  volume = {33},
+  pages = {7537--7547},
+  publisher = {Curran Associates, Inc.},
+  urldate = {2025-07-23},
+  abstract = {We show that passing input points through a simple Fourier feature mapping enables a multilayer perceptron (MLP) to learn high-frequency functions in low-dimensional problem domains. These results shed light on recent advances in computer vision and graphics that achieve state-of-the-art results by using MLPs to represent complex 3D objects and scenes. Using tools from the neural tangent kernel (NTK) literature, we show that a standard MLP has impractically slow convergence to high frequency signal components. To overcome this spectral bias, we use a Fourier feature mapping to transform the effective NTK into a stationary kernel with a tunable bandwidth. We suggest an approach for selecting problem-specific Fourier features that greatly improves the performance of MLPs for low-dimensional regression tasks relevant to the computer vision and graphics communities.}
+}
+
 @article{song2021maximum,
   title={Maximum likelihood training of score-based diffusion models},
   author={Song, Yang and Durkan, Conor and Murray, Iain and Ermon, Stefano},
@@ -279,4 +291,80 @@
   abstract = {Denoising diffusion probabilistic models (DDPM) are a class of generative models which have recently been shown to produce excellent samples. We show that with a few simple modifications, DDPMs can also achieve competitive log-likelihoods while maintaining high sample quality. Additionally, we find that learning variances of the reverse diffusion process allows sampling with an order of magnitude fewer forward passes with a negligible difference in sample quality, which is important for the practical deployment of these models. We additionally use precision and recall to compare how well DDPMs and GANs cover the target distribution. Finally, we show that the sample quality and likelihood of these models scale smoothly with model capacity and training compute, making them easily scalable. We release our code at https://github.com/openai/improved-diffusion},
   archiveprefix = {arXiv},
   keywords = {Computer Science - Artificial Intelligence,Computer Science - Machine Learning,Statistics - Machine Learning}
+}
+
+@article{scarselliGraphNeuralNetwork2009,
+  title = {The {{Graph Neural Network Model}}},
+  author = {Scarselli, Franco and Gori, Marco and Tsoi, Ah Chung and Hagenbuchner, Markus and Monfardini, Gabriele},
+  year = {2009},
+  month = jan,
+  journal = {IEEE Transactions on Neural Networks},
+  volume = {20},
+  number = {1},
+  pages = {61--80},
+  issn = {1941-0093},
+  doi = {10.1109/TNN.2008.2005605},
+  urldate = {2025-07-23},
+  abstract = {Many underlying relationships among data in several areas of science and engineering, e.g., computer vision, molecular chemistry, molecular biology, pattern recognition, and data mining, can be represented in terms of graphs. In this paper, we propose a new neural network model, called graph neural network (GNN) model, that extends existing neural network methods for processing the data represented in graph domains. This GNN model, which can directly process most of the practically useful types of graphs, e.g., acyclic, cyclic, directed, and undirected, implements a function tau(G,n) isin IRm that maps a graph G and one of its nodes n into an m-dimensional Euclidean space. A supervised learning algorithm is derived to estimate the parameters of the proposed GNN model. The computational cost of the proposed algorithm is also considered. Some experimental results are shown to validate the proposed learning algorithm, and to demonstrate its generalization capabilities.},
+  keywords = {Biological system modeling,Biology,Chemistry,Computer vision,Data engineering,Data mining,graph neural networks (GNNs),graph processing,Graphical domains,Neural networks,Parameter estimation,Pattern recognition,recursive neural networks,Supervised learning}
+}
+
+@misc{kipfSemiSupervisedClassificationGraph2017,
+  title = {Semi-{{Supervised Classification}} with {{Graph Convolutional Networks}}},
+  author = {Kipf, Thomas N. and Welling, Max},
+  year = {2017},
+  month = feb,
+  number = {arXiv:1609.02907},
+  eprint = {1609.02907},
+  primaryclass = {cs},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.1609.02907},
+  urldate = {2025-07-23},
+  abstract = {We present a scalable approach for semi-supervised learning on graph-structured data that is based on an efficient variant of convolutional neural networks which operate directly on graphs. We motivate the choice of our convolutional architecture via a localized first-order approximation of spectral graph convolutions. Our model scales linearly in the number of graph edges and learns hidden layer representations that encode both local graph structure and features of nodes. In a number of experiments on citation networks and on a knowledge graph dataset we demonstrate that our approach outperforms related methods by a significant margin.},
+  archiveprefix = {arXiv},
+  keywords = {Computer Science - Machine Learning,Statistics - Machine Learning}
+}
+
+@misc{velickovicGraphAttentionNetworks2018,
+  title = {Graph {{Attention Networks}}},
+  author = {Veli{\v c}kovi{\'c}, Petar and Cucurull, Guillem and Casanova, Arantxa and Romero, Adriana and Li{\`o}, Pietro and Bengio, Yoshua},
+  year = {2018},
+  month = feb,
+  number = {arXiv:1710.10903},
+  eprint = {1710.10903},
+  primaryclass = {stat},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.1710.10903},
+  urldate = {2025-07-23},
+  abstract = {We present graph attention networks (GATs), novel neural network architectures that operate on graph-structured data, leveraging masked self-attentional layers to address the shortcomings of prior methods based on graph convolutions or their approximations. By stacking layers in which nodes are able to attend over their neighborhoods' features, we enable (implicitly) specifying different weights to different nodes in a neighborhood, without requiring any kind of costly matrix operation (such as inversion) or depending on knowing the graph structure upfront. In this way, we address several key challenges of spectral-based graph neural networks simultaneously, and make our model readily applicable to inductive as well as transductive problems. Our GAT models have achieved or matched state-of-the-art results across four established transductive and inductive graph benchmarks: the Cora, Citeseer and Pubmed citation network datasets, as well as a protein-protein interaction dataset (wherein test graphs remain unseen during training).},
+  archiveprefix = {arXiv},
+  keywords = {Computer Science - Artificial Intelligence,Computer Science - Machine Learning,Computer Science - Social and Information Networks,Statistics - Machine Learning}
+}
+
+@misc{shiMaskedLabelPrediction2021,
+  title = {Masked {{Label Prediction}}: {{Unified Message Passing Model}} for {{Semi-Supervised Classification}}},
+  shorttitle = {Masked {{Label Prediction}}},
+  author = {Shi, Yunsheng and Huang, Zhengjie and Feng, Shikun and Zhong, Hui and Wang, Wenjin and Sun, Yu},
+  year = {2021},
+  month = may,
+  number = {arXiv:2009.03509},
+  eprint = {2009.03509},
+  primaryclass = {cs},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.2009.03509},
+  urldate = {2025-07-23},
+  abstract = {Graph neural network (GNN) and label propagation algorithm (LPA) are both message passing algorithms, which have achieved superior performance in semi-supervised classification. GNN performs feature propagation by a neural network to make predictions, while LPA uses label propagation across graph adjacency matrix to get results. However, there is still no effective way to directly combine these two kinds of algorithms. To address this issue, we propose a novel Unified Message Passaging Model (UniMP) that can incorporate feature and label propagation at both training and inference time. First, UniMP adopts a Graph Transformer network, taking feature embedding and label embedding as input information for propagation. Second, to train the network without overfitting in self-loop input label information, UniMP introduces a masked label prediction strategy, in which some percentage of input label information are masked at random, and then predicted. UniMP conceptually unifies feature propagation and label propagation and is empirically powerful. It obtains new state-of-the-art semi-supervised classification results in Open Graph Benchmark (OGB).},
+  archiveprefix = {arXiv},
+  keywords = {Computer Science - Machine Learning,Statistics - Machine Learning}
+}
+
+@inproceedings{vaswaniAttentionAllYou2017,
+  title = {Attention Is {{All}} You {{Need}}},
+  booktitle = {Advances in {{Neural Information Processing Systems}}},
+  author = {Vaswani, Ashish and Shazeer, Noam and Parmar, Niki and Uszkoreit, Jakob and Jones, Llion and Gomez, Aidan N and ukasz Kaiser, {\L} and Polosukhin, Illia},
+  year = {2017},
+  volume = {30},
+  publisher = {Curran Associates, Inc.},
+  urldate = {2025-07-23},
+  abstract = {The dominant sequence transduction models are based on complex recurrent orconvolutional neural networks in an encoder and decoder configuration. The best performing such models also connect the encoder and decoder through an attentionm echanisms.  We propose a novel, simple network architecture based solely onan attention mechanism, dispensing with recurrence and convolutions entirely.Experiments on two machine translation tasks show these models to be superiorin quality while being more parallelizable and requiring significantly less timeto train. Our single model with 165 million parameters, achieves 27.5 BLEU onEnglish-to-German translation, improving over the existing best ensemble result by over 1 BLEU. On English-to-French translation, we outperform the previoussingle state-of-the-art with model by 0.7 BLEU, achieving a BLEU score of 41.1.}
 }

@@ -69,7 +69,25 @@ Extract the \(C\alpha\) (alpha carbon) atoms for each protein domain in the data
 \end{align*}
 where \(l\) the number of \(C\alpha\) atoms (residues) is varying for different domain.
 \section{Model Architecture}
-For variable-length, 3D point cloud data, I use Euclidean neural networks \cite{thomasTensorFieldNetworks2018,weiler3DSteerableCNNs2018,kondorClebschGordanNetsFully2018}. It is rotation and translation invariant for 3D point cloud, and all its operations are per-node, or per-edge based, so it is compatible with variable-sized structures.
+\subsection{Message Passing Layers}
+\subsubsection{E3NN}
+Euclidean neural networks \cite{thomasTensorFieldNetworks2018,weiler3DSteerableCNNs2018,kondorClebschGordanNetsFully2018} is rotation and translation invariant for 3D point cloud, and all its operations are per-node, or per-edge based, so it is compatible with variable-sized structures.
+\subsubsection{Graph Neural Networks}
+Graph Neural Networks (GNNs) were first introduced in the seminal work by \cite{scarselliGraphNeuralNetwork2009}, which proposed a recursive framework for learning over graphs. The field progressed significantly with the development of Graph Convolutional Networks (GCNs) by \cite{kipfSemiSupervisedClassificationGraph2017}, which introduced a scalable and differentiable message-passing scheme. Further, Graph Attention Networks \cite{velickovicGraphAttentionNetworks2018}, brought in attention mechanisms to improve expressiveness and performance. To better model the complicated structure, I use the graph transformer network \cite{shiMaskedLabelPrediction2021} which incorporates multi-head self-attention over local neighborhoods.
+\subsection{Time Conditioning via Gaussian Fourier Features}
+Following \cite{song2020score}, we embed the diffusion time step \(t\in\left(0,1\right)\) using random Fourier features \cite{tancikFourierFeaturesLet2020}
+\begin{align*}
+    \gamma\left(t\right)=\left[\cos\left(2\pi Wt\right),\sin\left(2\pi Wt\right)\right],\quad W\sim\mathcal{N}\left(0,s^2\right),
+\end{align*}
+to provide continuous and expressive encoding of time.
+\subsection{Positional Encoding for Node Order Awareness}
+Graph-based models are inherently invariant to node permutations, which can be a limitation when modeling protein backbones, where the sequential order of residues encodes biologically meaningful directionality along the chain. To inject this ordering information, each node is assigned a scalar index \(p\in\left[0,1\right]\) representing its normalized position in the sequence. This index is first mapped to a high-dimensional representation using a sinusoidal encoding \cite{vaswaniAttentionAllYou2017}
+\begin{align*}
+    \rho\left(p\right)=\left[\sin\left(\omega_1 p\right),\cos\left(\omega_1 p\right),\sin\left(\omega_2 p\right),\cos\left(\omega_2 p\right),...\right]
+\end{align*}
+where \(w_k\)'s are fixed frequencies. The resulting positional embedding is then passed through a learnable transformation, such as a multilayer perceptron (MLP), before being incorporated into the model
+\subsection{Residual Network Architecture}
+Overall residual connections are used at each GNN layer.
 \section{Score-Based Diffusion Models}
 \subsection{Forward Process}
 Use Variance Preserving (VP) SDE \cite{song2020score}

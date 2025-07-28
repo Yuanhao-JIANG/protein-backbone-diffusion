@@ -10,8 +10,10 @@ from e3nn.nn.models.gate_points_2101 import Convolution
 from torch_geometric.nn import GATv2Conv, GINEConv, PNAConv, TransformerConv, GPSConv
 from torch_geometric.nn.models.basic_gnn import MLP
 from torch_geometric.nn.norm import BatchNorm, GraphNorm, LayerNorm, InstanceNorm, GraphSizeNorm, PairNorm, MeanSubtractionNorm
-from torch_geometric.nn import radius_graph
-from torch_geometric.utils import degree
+from torch_geometric.nn.pool import radius_graph, knn_graph
+from torch_geometric.utils import degree, to_undirected
+from torch_geometric.typing import SparseTensor
+torch.set_printoptions(threshold=10000)
 
 
 class SE3ScoreModel(nn.Module):
@@ -424,7 +426,7 @@ class PNAScoreModel(nn.Module):
 
 
 class TransformerScoreModel(nn.Module):
-    def __init__(self, hidden_dim=128, pos_embed_dim=128, t_embed_dim=128, t_edge_proj_dim=16, num_layers=4, heads=8, max_num_neighbors=30, radius=5, num_basis=16):
+    def __init__(self, hidden_dim=128, pos_embed_dim=128, t_embed_dim=128, t_edge_proj_dim=16, num_layers=4, heads=8, max_num_neighbors=32, radius=5, num_basis=16):
         super().__init__()
         self.max_num_neighbors = max_num_neighbors
         self.radius = radius
@@ -468,7 +470,7 @@ class TransformerScoreModel(nn.Module):
                 heads=heads,
                 concat=True,
                 beta=True,
-                dropout=0.1,
+                # dropout=0.1,
                 edge_dim=self.num_basis + 3 + t_edge_proj_dim  # edge_attr not used for now
             )
             for _ in range(num_layers)
@@ -515,7 +517,11 @@ class TransformerScoreModel(nn.Module):
         h = self.input_proj(coords)  # [N, hidden_dim]
 
         # Build radius graph to obtain edge index
-        edge_index = radius_graph(coords, r=self.radius, batch=batch, max_num_neighbors=self.max_num_neighbors)
+        # edge_index = radius_graph(coords, r=self.radius, batch=batch, max_num_neighbors=self.max_num_neighbors, loop=True, flow='target_to_source')
+        edge_index = knn_graph(x=coords, k=self.max_num_neighbors, batch=batch, loop=True, flow='target_to_source')
+
+        # edge_index = to_undirected(edge_index, num_nodes=coords.shape[0])
+        # edge_index_sparse = SparseTensor.from_edge_index(edge_index, sparse_sizes=(coords.shape[0], coords.shape[0]))
 
         #################################################################################
         ############## check neighborhood number within self.radius #####################
@@ -526,7 +532,6 @@ class TransformerScoreModel(nn.Module):
         # num_nodes = coords.size(0)
         # node_degree = degree(src, num_nodes=num_nodes)
         #
-        # # Print or analyze
         # print(f"Max: {node_degree.max():.0f}, Min: {node_degree.min():.0f}")
         #################################################################################
         #################################################################################
@@ -557,7 +562,8 @@ class TransformerScoreModel(nn.Module):
 
             # Concat time + feature
             if self.cat_embeddings:
-                h = conv(torch.cat([h, pos, t_per_node], dim=-1), edge_index, edge_attr)
+                # h = conv(torch.cat([h, pos, t_per_node], dim=-1), edge_index=edge_index_sparse, edge_attr=edge_attr)
+                h = conv(torch.cat([h, pos, t_per_node], dim=-1), edge_index=edge_index, edge_attr=edge_attr)
             else:
                 h = conv(h + pos_feat + t_per_node, edge_index, edge_attr)
 
@@ -664,9 +670,10 @@ class GPSScoreModel(nn.Module):
 
 
 class UNetScoreModel(nn.Module):
-    def __init__(self, in_channels=3, embed_dim=128):
+    def __init__(self, in_channels=3, embed_dim=128, truncate=False):
         super().__init__()
-        self.channels = [64, 128, 128, 128]
+        self.truncate = truncate
+        self.channels = [128, 128, 128, 128]
 
         # encoding layers
         self.conv1 = nn.Conv1d(in_channels, self.channels[0], kernel_size=3, padding=2)
@@ -784,7 +791,11 @@ def get_noise_conditioned_score(model, x_t, batch, t, sde):
     _, std = sde.marginal_prob(torch.zeros_like(x_t), t_nodes)
 
     if isinstance(model, UNetScoreModel):
-        x_t, mask = pad_coords(x_t, batch)
+        if model.truncate:
+            pad_len = 30
+        else:
+            pad_len = 1206
+        x_t, mask = pad_coords(x_t, batch, pad_len=pad_len)
         score = model(x_t, t=t)
         score, _ = unpad_coords(score, mask)
         return - score / std

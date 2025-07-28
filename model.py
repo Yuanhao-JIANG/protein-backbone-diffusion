@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from e3nn.o3 import Irreps, spherical_harmonics
 from e3nn.math import soft_one_hot_linspace
 from e3nn.nn.models.gate_points_2101 import Convolution
-from torch_geometric.nn import GATv2Conv, GINEConv, PNAConv, TransformerConv, GPSConv, TopKPooling
+from torch_geometric.nn import GATv2Conv, GINEConv, PNAConv, TransformerConv, GPSConv, TopKPooling, knn_interpolate
 from torch_geometric.nn.models.basic_gnn import MLP
 from torch_geometric.nn.norm import BatchNorm, GraphNorm, LayerNorm, InstanceNorm, GraphSizeNorm, PairNorm, MeanSubtractionNorm
 from torch_geometric.nn.pool import radius_graph, knn_graph
@@ -766,7 +766,7 @@ class GraphUNetScoreModel(nn.Module):
         t_edge = self.t_edge_proj(t_feat[batch][edge_index[0]])
         edge_attr = torch.cat([edge_scalar, edge_dir, t_edge], dim=-1)  # [E, num_basis + 3 + t_edge_proj_dim]
 
-        x_stack, edge_stack, batch_stack, perm_stack = [], [], [], []
+        x_stack, edge_index_stack, edge_attr_stack, batch_stack, coord_stack, pos_stack = [], [], [], [], [], []
 
         # Encode
         for conv, norm, pool, pos_mlp, t_mlp in zip(
@@ -779,14 +779,15 @@ class GraphUNetScoreModel(nn.Module):
             h = self.act(norm(h, batch) + h_res)
 
             x_stack.append(h)
-            edge_stack.append(edge_index)
+            edge_index_stack.append(edge_index)
+            edge_attr_stack.append(edge_attr)
             batch_stack.append(batch)
+            coord_stack.append(coords)
+            pos_stack.append(pos_feat)
 
             h, edge_index, edge_attr, batch, perm, _ = pool(h, edge_index, edge_attr, batch=batch)
             pos_feat = pos_feat[perm]
-            t_feat = t_feat
             coords = coords[perm]
-            perm_stack.append(perm)
 
         # Bottleneck
         t_per_node = self.t_encoders[-1](t_feat)[batch]
@@ -795,20 +796,20 @@ class GraphUNetScoreModel(nn.Module):
         h = self.bottleneck_conv(torch.cat([h, pos, t_per_node], dim=-1), edge_index, edge_attr)
         h = self.act(self.bottleneck_norm(h, batch) + h_res)
 
-        # Decode
-        for conv, norm, x_skip, edge_skip, batch_skip, perm in zip(
+        for conv, norm, x_skip, edge_index_skip, edge_attr_skip, batch_skip, coords_skip, pos_skip in zip(
                 self.decoder_convs, self.decoder_norms,
-                reversed(x_stack), reversed(edge_stack), reversed(batch_stack), reversed(perm_stack)):
-            unperm = perm.new_zeros(perm.size(0)).scatter_(0, torch.arange(perm.size(0), device=perm.device), perm)
-            h_up = torch.zeros_like(x_skip)
-            h_up[perm] = h
-            h = h_up + x_skip  # skip connection
+                reversed(x_stack), reversed(edge_index_stack), reversed(edge_attr_stack), reversed(batch_stack), reversed(coord_stack), reversed(pos_stack)):
 
-            t_per_node = self.t_encoders[-1](t_feat)[batch_skip]
+            h = knn_interpolate(h, coords, coords_skip, batch, batch_skip, k=3)
+            coords = coords_skip
+            batch = batch_skip
+            pos_feat = pos_skip
+
+            t_per_node = self.t_encoders[-1](t_feat)[batch]
             pos = self.pos_encoders[-1](pos_feat)
             h_res = h
-            h = conv(torch.cat([h, pos, t_per_node], dim=-1), edge_skip, edge_attr)
-            h = self.act(norm(h, batch_skip) + h_res)
+            h = conv(torch.cat([h + x_skip, pos, t_per_node], dim=-1), edge_index_skip, edge_attr_skip)
+            h = self.act(norm(h, batch) + h_res)
 
         return self.output_proj(h)
 

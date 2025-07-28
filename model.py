@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from e3nn.o3 import Irreps, spherical_harmonics
 from e3nn.math import soft_one_hot_linspace
 from e3nn.nn.models.gate_points_2101 import Convolution
-from torch_geometric.nn import GATv2Conv, GINEConv, PNAConv, TransformerConv, GPSConv
+from torch_geometric.nn import GATv2Conv, GINEConv, PNAConv, TransformerConv, GPSConv, TopKPooling
 from torch_geometric.nn.models.basic_gnn import MLP
 from torch_geometric.nn.norm import BatchNorm, GraphNorm, LayerNorm, InstanceNorm, GraphSizeNorm, PairNorm, MeanSubtractionNorm
 from torch_geometric.nn.pool import radius_graph, knn_graph
@@ -425,7 +425,102 @@ class PNAScoreModel(nn.Module):
         return self.output_proj(h)
 
 
-class TransformerScoreModel(nn.Module):
+class GPSScoreModel(nn.Module):
+    def __init__(self, hidden_dim=128, pos_embed_dim=128, t_embed_dim=128, num_layers=4, heads=8, max_num_neighbors=30, radius=5.0, num_basis=4):
+        super().__init__()
+        self.hidden_dim = hidden_dim
+        self.radius = radius
+        self.max_num_neighbors = max_num_neighbors
+        self.num_basis = num_basis
+        self.heads = heads
+
+        self.concat_proj = nn.Linear(hidden_dim + pos_embed_dim + t_embed_dim, hidden_dim)
+
+        # Positional encoding via per-node order in each graph
+        self.pos_embed = nn.Sequential(
+            nn.Linear(1, pos_embed_dim),
+            nn.SiLU(),
+            nn.Linear(pos_embed_dim, pos_embed_dim)
+        )
+
+        # Time embedding
+        self.t_embed = nn.Sequential(
+            GaussianFourierProjection(t_embed_dim, scale=30.),
+            nn.Linear(t_embed_dim, t_embed_dim),
+        )
+
+        # Per-layer time projection
+        self.t_mlps = nn.ModuleList([
+            nn.Linear(t_embed_dim, t_embed_dim) for _ in range(num_layers)
+        ])
+
+        # Input/output projections
+        self.input_proj = nn.Linear(3, hidden_dim)
+        self.output_proj = nn.Linear(hidden_dim, 3)
+
+        # GPS layers with GINE as local conv
+        self.convs = nn.ModuleList()
+        for _ in range(num_layers):
+            mlp = nn.Sequential(
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.SiLU(),
+                nn.Linear(hidden_dim, hidden_dim)
+            )
+            gine = GINEConv(nn=mlp, edge_dim=num_basis + 3)
+
+            self.convs.append(
+                GPSConv(
+                    channels=hidden_dim,
+                    conv=gine,
+                    heads=heads,
+                    attn_type='multihead',
+                    act='SiLU'
+                )
+            )
+
+    def forward(self, coords, batch, t):
+        # coords: [N, 3], batch: [N], t: [B]
+
+        # Positional encoding (based on relative position in the chain)
+        num_graphs = batch.max().item() + 1
+        pos_index = torch.empty_like(batch, dtype=torch.float)
+        for i in range(num_graphs):
+            mask = batch == i
+            pos_index[mask] = torch.linspace(0, 1, steps=mask.sum(), device=coords.device)
+        pos_feat = self.pos_embed(pos_index[:, None])  # [N, pos_embed_dim]
+
+        # Time embedding
+        t_feat = self.t_embed(t[:, None])  # [B, t_embed_dim]
+
+        # Input projection
+        h = self.input_proj(coords)  # [N, hidden_dim]
+
+        # Compute edge_index
+        edge_index = radius_graph(coords, r=self.radius, batch=batch, max_num_neighbors=self.max_num_neighbors)
+
+        # Edge attributes: edge length + direction
+        edge_vec = coords[edge_index[0]] - coords[edge_index[1]]
+        edge_dir = F.normalize(edge_vec, dim=-1)
+        edge_length = edge_vec.norm(dim=-1)
+        edge_scalar = soft_one_hot_linspace(
+            edge_length,
+            start=0.0,
+            end=self.radius,
+            number=self.num_basis,
+            basis='gaussian',
+            cutoff=True
+        )
+        edge_attr = torch.cat([edge_scalar, edge_dir], dim=-1)
+
+        for conv, t_mlp in zip(self.convs, self.t_mlps):
+            t_per_node = t_mlp(t_feat)[batch]
+            h_input = self.concat_proj(torch.cat([h, pos_feat, t_per_node], dim=-1))  # [N, hidden_dim]
+            h = conv(h_input, edge_index, batch=batch, edge_attr=edge_attr)
+
+        return self.output_proj(h)  # [N, 3]
+
+
+class GraphTransformerScoreModel(nn.Module):
     def __init__(self, hidden_dim=128, pos_embed_dim=128, t_embed_dim=128, t_edge_proj_dim=16, num_layers=4, heads=8, max_num_neighbors=32, radius=5, num_basis=16):
         super().__init__()
         self.max_num_neighbors = max_num_neighbors
@@ -574,99 +669,148 @@ class TransformerScoreModel(nn.Module):
         return self.output_proj(h)
 
 
-class GPSScoreModel(nn.Module):
-    def __init__(self, hidden_dim=128, pos_embed_dim=128, t_embed_dim=128, num_layers=4, heads=8, max_num_neighbors=30, radius=5.0, num_basis=4):
+class GraphUNetScoreModel(nn.Module):
+    def __init__(self, hidden_dim=128, pos_embed_dim=128, t_embed_dim=128, t_edge_proj_dim=16, num_layers=4, heads=8, max_num_neighbors=32, radius=5, num_basis=16, pool_ratio=0.8):
         super().__init__()
-        self.hidden_dim = hidden_dim
-        self.radius = radius
         self.max_num_neighbors = max_num_neighbors
+        self.radius = radius
         self.num_basis = num_basis
         self.heads = heads
+        self.pool_ratio = pool_ratio
+        self.cat_embeddings = True
 
-        self.concat_proj = nn.Linear(hidden_dim + pos_embed_dim + t_embed_dim, hidden_dim)
-
-        # Positional encoding via per-node order in each graph
         self.pos_embed = nn.Sequential(
-            nn.Linear(1, pos_embed_dim),
-            nn.SiLU(),
+            SinusoidalEncoding(embed_dim=pos_embed_dim),
             nn.Linear(pos_embed_dim, pos_embed_dim)
         )
 
-        # Time embedding
         self.t_embed = nn.Sequential(
-            GaussianFourierProjection(t_embed_dim, scale=30.),
+            GaussianFourierProjection(t_embed_dim, scale=25.),
             nn.Linear(t_embed_dim, t_embed_dim),
         )
+        self.t_edge_proj = nn.Linear(t_embed_dim, t_edge_proj_dim)
 
-        # Per-layer time projection
-        self.t_mlps = nn.ModuleList([
-            nn.Linear(t_embed_dim, t_embed_dim) for _ in range(num_layers)
-        ])
-
-        # Input/output projections
         self.input_proj = nn.Linear(3, hidden_dim)
-        self.output_proj = nn.Linear(hidden_dim, 3)
+        self.output_proj = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.SiLU(),
+            nn.Linear(hidden_dim, 3)
+        )
+        self.act = nn.SiLU()
 
-        # GPS layers with GINE as local conv
-        self.convs = nn.ModuleList()
+        in_channels = hidden_dim + pos_embed_dim + t_embed_dim
+
+        # Encoder path
+        self.encoder_convs = nn.ModuleList()
+        self.encoder_norms = nn.ModuleList()
+        self.encoder_pools = nn.ModuleList()
+        self.pos_encoders = nn.ModuleList()
+        self.t_encoders = nn.ModuleList()
         for _ in range(num_layers):
-            mlp = nn.Sequential(
-                nn.Linear(hidden_dim, hidden_dim),
-                nn.SiLU(),
-                nn.Linear(hidden_dim, hidden_dim)
-            )
-            gine = GINEConv(nn=mlp, edge_dim=num_basis + 3)
+            self.encoder_convs.append(TransformerConv(
+                in_channels=in_channels,
+                out_channels=hidden_dim // heads,
+                heads=heads,
+                concat=True,
+                beta=True,
+                # dropout=0.1,
+                edge_dim=self.num_basis + 3 + t_edge_proj_dim))
+            self.encoder_norms.append(GraphNorm(hidden_dim))
+            self.encoder_pools.append(TopKPooling(hidden_dim, ratio=self.pool_ratio))
+            self.pos_encoders.append(nn.Linear(pos_embed_dim, pos_embed_dim))
+            self.t_encoders.append(nn.Linear(t_embed_dim, t_embed_dim))
 
-            self.convs.append(
-                GPSConv(
-                    channels=hidden_dim,
-                    conv=gine,
-                    heads=heads,
-                    attn_type='multihead',
-                    act='SiLU'
-                )
-            )
+        # Bottleneck
+        self.bottleneck_conv = TransformerConv(
+            in_channels=in_channels,
+            out_channels=hidden_dim // heads,
+            heads=heads,
+            concat=True,
+            beta=True,
+            edge_dim=self.num_basis + 3 + t_edge_proj_dim)
+        self.bottleneck_norm = GraphNorm(hidden_dim)
+
+        # Decoder path
+        self.decoder_convs = nn.ModuleList()
+        self.decoder_norms = nn.ModuleList()
+        for _ in range(num_layers):
+            self.decoder_convs.append(TransformerConv(
+                in_channels=in_channels,
+                out_channels=hidden_dim // heads,
+                heads=heads,
+                concat=True,
+                beta=True,
+                edge_dim=self.num_basis + 3 + t_edge_proj_dim))
+            self.decoder_norms.append(GraphNorm(hidden_dim))
 
     def forward(self, coords, batch, t):
-        # coords: [N, 3], batch: [N], t: [B]
-
-        # Positional encoding (based on relative position in the chain)
+        # per-node position index and time embedding
         num_graphs = batch.max().item() + 1
         pos_index = torch.empty_like(batch, dtype=torch.float)
         for i in range(num_graphs):
-            mask = batch == i
-            pos_index[mask] = torch.linspace(0, 1, steps=mask.sum(), device=coords.device)
-        pos_feat = self.pos_embed(pos_index[:, None])  # [N, pos_embed_dim]
+            mask = (batch == i)
+            count = mask.sum()
+            pos_index[mask] = torch.linspace(0, 1, steps=count, device=coords.device)
+        pos_feat = self.act(self.pos_embed(pos_index[:, None])) # [N, pos_embed_dim]
+        t_feat = self.act(self.t_embed(t[:, None])) # [N, t_embed_dim]
 
-        # Time embedding
-        t_feat = self.t_embed(t[:, None])  # [B, t_embed_dim]
+        h = self.input_proj(coords) # [N, hidden_sim]
 
-        # Input projection
-        h = self.input_proj(coords)  # [N, hidden_dim]
+        # edge_index = radius_graph(coords, r=self.radius, batch=batch, max_num_neighbors=self.max_num_neighbors, loop=True, flow='target_to_source')
+        edge_index = knn_graph(coords, k=self.max_num_neighbors, batch=batch, loop=True, flow='target_to_source')
 
-        # Compute edge_index
-        edge_index = radius_graph(coords, r=self.radius, batch=batch, max_num_neighbors=self.max_num_neighbors)
-
-        # Edge attributes: edge length + direction
         edge_vec = coords[edge_index[0]] - coords[edge_index[1]]
         edge_dir = F.normalize(edge_vec, dim=-1)
         edge_length = edge_vec.norm(dim=-1)
-        edge_scalar = soft_one_hot_linspace(
-            edge_length,
-            start=0.0,
-            end=self.radius,
-            number=self.num_basis,
-            basis='gaussian',
-            cutoff=True
-        )
-        edge_attr = torch.cat([edge_scalar, edge_dir], dim=-1)
+        edge_scalar = soft_one_hot_linspace(edge_length, start=0.0, end=self.radius, number=self.num_basis, basis='gaussian', cutoff=True)  # [E, num_basis]
+        t_edge = self.t_edge_proj(t_feat[batch][edge_index[0]])
+        edge_attr = torch.cat([edge_scalar, edge_dir, t_edge], dim=-1)  # [E, num_basis + 3 + t_edge_proj_dim]
 
-        for conv, t_mlp in zip(self.convs, self.t_mlps):
+        x_stack, edge_stack, batch_stack, perm_stack = [], [], [], []
+
+        # Encode
+        for conv, norm, pool, pos_mlp, t_mlp in zip(
+                self.encoder_convs, self.encoder_norms, self.encoder_pools,
+                self.pos_encoders, self.t_encoders):
             t_per_node = t_mlp(t_feat)[batch]
-            h_input = self.concat_proj(torch.cat([h, pos_feat, t_per_node], dim=-1))  # [N, hidden_dim]
-            h = conv(h_input, edge_index, batch=batch, edge_attr=edge_attr)
+            pos = pos_mlp(pos_feat)
+            h_res = h
+            h = conv(torch.cat([h, pos, t_per_node], dim=-1), edge_index, edge_attr)
+            h = self.act(norm(h, batch) + h_res)
 
-        return self.output_proj(h)  # [N, 3]
+            x_stack.append(h)
+            edge_stack.append(edge_index)
+            batch_stack.append(batch)
+
+            h, edge_index, edge_attr, batch, perm, _ = pool(h, edge_index, edge_attr, batch=batch)
+            pos_feat = pos_feat[perm]
+            t_feat = t_feat
+            coords = coords[perm]
+            perm_stack.append(perm)
+
+        # Bottleneck
+        t_per_node = self.t_encoders[-1](t_feat)[batch]
+        pos = self.pos_encoders[-1](pos_feat)
+        h_res = h
+        h = self.bottleneck_conv(torch.cat([h, pos, t_per_node], dim=-1), edge_index, edge_attr)
+        h = self.act(self.bottleneck_norm(h, batch) + h_res)
+
+        # Decode
+        for conv, norm, x_skip, edge_skip, batch_skip, perm in zip(
+                self.decoder_convs, self.decoder_norms,
+                reversed(x_stack), reversed(edge_stack), reversed(batch_stack), reversed(perm_stack)):
+            unperm = perm.new_zeros(perm.size(0)).scatter_(0, torch.arange(perm.size(0), device=perm.device), perm)
+            h_up = torch.zeros_like(x_skip)
+            h_up[perm] = h
+            h = h_up + x_skip  # skip connection
+
+            t_per_node = self.t_encoders[-1](t_feat)[batch_skip]
+            pos = self.pos_encoders[-1](pos_feat)
+            h_res = h
+            h = conv(torch.cat([h, pos, t_per_node], dim=-1), edge_skip, edge_attr)
+            h = self.act(norm(h, batch_skip) + h_res)
+
+        return self.output_proj(h)
 
 
 class UNetScoreModel(nn.Module):
@@ -804,8 +948,9 @@ def get_noise_conditioned_score(model, x_t, batch, t, sde):
             isinstance(model, GATv2ScoreModel) or
             isinstance(model, GINEScoreModel) or
             isinstance(model, PNAScoreModel) or
-            isinstance(model, TransformerScoreModel) or
-            isinstance(model, GPSScoreModel)
+            isinstance(model, GPSScoreModel) or
+            isinstance(model, GraphTransformerScoreModel) or
+            isinstance(model, GraphUNetScoreModel)
     ):
         return - model(x_t, batch=batch, t=t) / std
     else:

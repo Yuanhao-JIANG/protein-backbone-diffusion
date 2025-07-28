@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from model import SE3ScoreModel, UNetScoreModel, GATv2ScoreModel, GINEScoreModel, PNAScoreModel, TransformerScoreModel, GPSScoreModel
+from model import SE3ScoreModel, UNetScoreModel, GATv2ScoreModel, GINEScoreModel, PNAScoreModel, GPSScoreModel, GraphTransformerScoreModel, GraphUNetScoreModel
 from sde import VESDE, VPSDE, CosineVPSDE
 from ds_utils import get_dataloaders, CADataset
 from train import train
@@ -28,12 +28,13 @@ def main():
 
     # === Model, SDE, Optimizer ===
     # model = SE3ScoreModel().to(device)
-    # model = UNetScoreModel(truncate=truncate).to(device)
     # model = GATv2ScoreModel().to(device)
     # model = GINEScoreModel().to(device)
     # model = PNAScoreModel(train_loader).to(device)
-    model = TransformerScoreModel().to(device)
     # model = GPSScoreModel().to(device)
+    # model = GraphTransformerScoreModel().to(device)
+    model = GraphUNetScoreModel().to(device)
+    # model = UNetScoreModel(truncate=truncate).to(device)
     print(f'{model.__class__.__name__}. Number of learnable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}')
     # sde = VESDE(sigma_min=0.01, sigma_max=50.0)
     # sde = VPSDE(beta_0=0.1, beta_1=20.0)

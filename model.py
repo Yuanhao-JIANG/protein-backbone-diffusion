@@ -521,7 +521,7 @@ class GPSScoreModel(nn.Module):
 
 
 class GraphTransformerScoreModel(nn.Module):
-    def __init__(self, hidden_dim=128, pos_embed_dim=128, t_embed_dim=128, t_edge_proj_dim=16, num_layers=4, heads=8, max_num_neighbors=32, radius=5, num_basis=16):
+    def __init__(self, hidden_dim=128, pos_embed_dim=128, t_embed_dim=128, t_edge_proj_dim=16, num_layers=6, heads=8, max_num_neighbors=32, radius=5, num_basis=16):
         super().__init__()
         self.max_num_neighbors = max_num_neighbors
         self.radius = radius
@@ -698,7 +698,12 @@ class GraphUNetScoreModel(nn.Module):
         )
         self.act = nn.SiLU()
 
-        in_channels = hidden_dim + pos_embed_dim + t_embed_dim
+        if self.cat_embeddings:
+            in_channels = hidden_dim + pos_embed_dim + t_embed_dim
+            dec_in_channels = in_channels
+        else:
+            in_channels = hidden_dim
+            dec_in_channels = in_channels * 2
 
         # Encoder path
         self.encoder_convs = nn.ModuleList()
@@ -707,14 +712,17 @@ class GraphUNetScoreModel(nn.Module):
         self.pos_encoders = nn.ModuleList()
         self.t_encoders = nn.ModuleList()
         for _ in range(num_layers):
-            self.encoder_convs.append(TransformerConv(
-                in_channels=in_channels,
-                out_channels=hidden_dim // heads,
-                heads=heads,
-                concat=True,
-                beta=True,
-                # dropout=0.1,
-                edge_dim=self.num_basis + 3 + t_edge_proj_dim))
+            self.encoder_convs.append(
+                TransformerConv(
+                    in_channels=in_channels,
+                    out_channels=hidden_dim // heads,
+                    heads=heads,
+                    concat=True,
+                    beta=True,
+                    # dropout=0.1,
+                    edge_dim=self.num_basis + 3 + t_edge_proj_dim
+                )
+            )
             self.encoder_norms.append(GraphNorm(hidden_dim))
             self.encoder_pools.append(TopKPooling(hidden_dim, ratio=self.pool_ratio))
             self.pos_encoders.append(nn.Linear(pos_embed_dim, pos_embed_dim))
@@ -734,13 +742,17 @@ class GraphUNetScoreModel(nn.Module):
         self.decoder_convs = nn.ModuleList()
         self.decoder_norms = nn.ModuleList()
         for _ in range(num_layers):
-            self.decoder_convs.append(TransformerConv(
-                in_channels=in_channels,
-                out_channels=hidden_dim // heads,
-                heads=heads,
-                concat=True,
-                beta=True,
-                edge_dim=self.num_basis + 3 + t_edge_proj_dim))
+            self.decoder_convs.append(
+                TransformerConv(
+                    in_channels=dec_in_channels,
+                    out_channels=hidden_dim // heads,
+                    heads=heads,
+                    concat=True,
+                    beta=True,
+                    # dropout=0.1,
+                    edge_dim=self.num_basis + 3 + t_edge_proj_dim
+                )
+            )
             self.decoder_norms.append(GraphNorm(hidden_dim))
 
     def forward(self, coords, batch, t):
@@ -775,7 +787,10 @@ class GraphUNetScoreModel(nn.Module):
             t_per_node = t_mlp(t_feat)[batch]
             pos = pos_mlp(pos_feat)
             h_res = h
-            h = conv(torch.cat([h, pos, t_per_node], dim=-1), edge_index, edge_attr)
+            if self.cat_embeddings:
+                h = conv(torch.cat([h, pos, t_per_node], dim=-1), edge_index, edge_attr)
+            else:
+                h = conv(h + pos + t_per_node, edge_index, edge_attr)
             h = self.act(norm(h, batch) + h_res)
 
             x_stack.append(h)
@@ -793,9 +808,13 @@ class GraphUNetScoreModel(nn.Module):
         t_per_node = self.t_encoders[-1](t_feat)[batch]
         pos = self.pos_encoders[-1](pos_feat)
         h_res = h
-        h = self.bottleneck_conv(torch.cat([h, pos, t_per_node], dim=-1), edge_index, edge_attr)
+        if self.cat_embeddings:
+            h = self.bottleneck_conv(torch.cat([h, pos, t_per_node], dim=-1), edge_index, edge_attr)
+        else:
+            h = self.bottleneck_conv(h + pos + t_per_node, edge_index, edge_attr)
         h = self.act(self.bottleneck_norm(h, batch) + h_res)
 
+        # Decode
         for conv, norm, x_skip, edge_index_skip, edge_attr_skip, batch_skip, coords_skip, pos_skip in zip(
                 self.decoder_convs, self.decoder_norms,
                 reversed(x_stack), reversed(edge_index_stack), reversed(edge_attr_stack), reversed(batch_stack), reversed(coord_stack), reversed(pos_stack)):
@@ -808,7 +827,11 @@ class GraphUNetScoreModel(nn.Module):
             t_per_node = self.t_encoders[-1](t_feat)[batch]
             pos = self.pos_encoders[-1](pos_feat)
             h_res = h
-            h = conv(torch.cat([h + x_skip, pos, t_per_node], dim=-1), edge_index_skip, edge_attr_skip)
+            if self.cat_embeddings:
+                h = conv(torch.cat([h + x_skip, pos, t_per_node], dim=-1), edge_index_skip, edge_attr_skip)
+            else:
+                h = conv(torch.cat([h + pos + t_per_node, x_skip], dim=-1), edge_index_skip, edge_attr_skip)
+                # h = conv(h + x_skip + pos + t_per_node, edge_index_skip, edge_attr_skip)
             h = self.act(norm(h, batch) + h_res)
 
         return self.output_proj(h)

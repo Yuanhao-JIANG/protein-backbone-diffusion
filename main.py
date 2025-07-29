@@ -24,7 +24,7 @@ def main():
     # get dataloader
     truncate = False
     resume = False
-    train_loader, val_loader, test_loader = get_dataloaders(batch_size=16, truncate=truncate)
+    train_loader, val_loader, test_loader = get_dataloaders(batch_size=64, truncate=truncate)
 
     # === Model, SDE, Optimizer ===
     # model = SE3ScoreModel().to(device)
@@ -32,8 +32,8 @@ def main():
     # model = GINEScoreModel().to(device)
     # model = PNAScoreModel(train_loader).to(device)
     # model = GPSScoreModel().to(device)
-    # model = GraphTransformerScoreModel().to(device)
-    model = GraphUNetScoreModel().to(device)
+    model = GraphTransformerScoreModel().to(device)
+    # model = GraphUNetScoreModel().to(device)
     # model = UNetScoreModel(truncate=truncate).to(device)
     print(f'{model.__class__.__name__}. Number of learnable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}')
     # sde = VESDE(sigma_min=0.01, sigma_max=50.0)

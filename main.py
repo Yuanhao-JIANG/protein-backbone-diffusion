@@ -10,8 +10,12 @@ import os
 def main():
     # === Configs ===
     num_epochs = 150
+    batch_size = 64
     learning_rate = 1e-4
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    truncate = False
+    resume = False
+    sampling = True
     print("Using device:", device)
 
     # === Dataset & Dataloader ===
@@ -22,9 +26,7 @@ def main():
     # exit()
 
     # get dataloader
-    truncate = False
-    resume = False
-    train_loader, val_loader, test_loader = get_dataloaders(batch_size=64, truncate=truncate)
+    train_loader, val_loader, test_loader = get_dataloaders(batch_size=batch_size, truncate=truncate)
 
     # === Model, SDE, Optimizer ===
     # model = SE3ScoreModel().to(device)
@@ -52,10 +54,11 @@ def main():
     train(model, train_loader, optimizer, sde, num_epochs=num_epochs, save_path=checkpoint_path, device=device)
 
     # === Sampling ===
-    model.load_state_dict(torch.load(checkpoint_path, map_location=device))
-    model.to(device)
-    lengths = [189, 200]  # Sample 2 domains of different lengths
-    coords, batch = pc_sampler_batch(model, sde, lengths=lengths, n_corr_steps=3, plot=True, device=device)
+    if sampling:
+        model.load_state_dict(torch.load(checkpoint_path, map_location=device))
+        model.to(device)
+        lengths = [189, 200]  # Sample 2 domains of different lengths
+        coords, batch = pc_sampler_batch(model, sde, lengths=lengths, n_corr_steps=3, plot=True, device=device)
 
 if __name__ == "__main__":
     main()

@@ -15,6 +15,7 @@ def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.15, n_corr_step
         snr: signal-to-noise ratio for Langevin correction
         n_corr_steps: number of Langevin correction steps
         eps: starting time
+        plot: whether to plot the denoised coordinates
         device: device to run on
     Returns:
         Tensor of shape [sum(lengths), 3] (coordinates)
@@ -77,9 +78,9 @@ def  pc_sampler_batch(model, sde, lengths, num_steps=1000, snr=0.15, n_corr_step
             ax.set_box_aspect([1, 1, 1])  # Keep an aspect ratio
             j+=1
 
-    plt.tight_layout()
-    plt.savefig(f'./figs/{model.__class__.__name__}_denoising_{len(x_t)}.png')
-    plt.show()
-
+    if plot:
+        plt.tight_layout()
+        plt.savefig(f'./figs/{model.__class__.__name__}_denoising_{len(x_t)}.png')
+        plt.show()
 
     return x, batch

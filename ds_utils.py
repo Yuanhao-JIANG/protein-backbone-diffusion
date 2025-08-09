@@ -86,10 +86,10 @@ def get_dataloaders(batch_size=32, truncate=False):
     # Create dataset
     dataset = CADataset(SAVE_DIR if not truncate else TRUNCATED_DIR)
 
-    # Split: 80% train, 10% val, 10% test
+    # Split: 90% train, 5% val, 5% test
     n = len(dataset)
-    train_size = int(0.8 * n)
-    val_size = int(0.1 * n)
+    train_size = int(0.9 * n)
+    val_size = int(0.05 * n)
     test_size = n - train_size - val_size
     train_set, val_set, test_set = random_split(dataset, [train_size, val_size, test_size])
 

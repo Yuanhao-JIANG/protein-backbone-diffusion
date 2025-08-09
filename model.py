@@ -3,7 +3,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-# from e3nn.nn import BatchNorm
 from e3nn.o3 import Irreps, spherical_harmonics
 from e3nn.math import soft_one_hot_linspace
 from e3nn.nn.models.gate_points_2101 import Convolution
@@ -13,7 +12,6 @@ from torch_geometric.nn.norm import BatchNorm, GraphNorm, LayerNorm, InstanceNor
 from torch_geometric.nn.pool import radius_graph, knn_graph
 from torch_geometric.utils import degree, to_undirected
 from torch_geometric.typing import SparseTensor
-torch.set_printoptions(threshold=10000)
 
 
 class SE3ScoreModel(nn.Module):
@@ -521,7 +519,7 @@ class GPSScoreModel(nn.Module):
 
 
 class GraphTransformerScoreModel(nn.Module):
-    def __init__(self, hidden_dim=128, pos_embed_dim=128, t_embed_dim=128, t_edge_proj_dim=16, num_layers=6, heads=8, max_num_neighbors=32, radius=5, num_basis=16):
+    def __init__(self, hidden_dim=128, pos_embed_dim=128, t_embed_dim=128, t_edge_proj_dim=16, num_layers=5, heads=8, max_num_neighbors=500, radius=5, num_basis=32):
         super().__init__()
         self.max_num_neighbors = max_num_neighbors
         self.radius = radius
@@ -542,7 +540,7 @@ class GraphTransformerScoreModel(nn.Module):
 
         # Time embedding
         self.t_embed = nn.Sequential(
-            GaussianFourierProjection(t_embed_dim, scale=25.),
+            GaussianFourierProjection(t_embed_dim, scale=16.),
             nn.Linear(t_embed_dim, t_embed_dim),
         )
 
@@ -566,7 +564,7 @@ class GraphTransformerScoreModel(nn.Module):
                 concat=True,
                 beta=True,
                 # dropout=0.1,
-                edge_dim=self.num_basis + 3 + t_edge_proj_dim  # edge_attr not used for now
+                edge_dim=self.num_basis + 3 + t_edge_proj_dim
             )
             for _ in range(num_layers)
         ])
@@ -612,24 +610,11 @@ class GraphTransformerScoreModel(nn.Module):
         h = self.input_proj(coords)  # [N, hidden_dim]
 
         # Build radius graph to obtain edge index
-        # edge_index = radius_graph(coords, r=self.radius, batch=batch, max_num_neighbors=self.max_num_neighbors, loop=True, flow='target_to_source')
-        edge_index = knn_graph(x=coords, k=self.max_num_neighbors, batch=batch, loop=True, flow='target_to_source')
+        edge_index = radius_graph(coords, r=self.radius, batch=batch, max_num_neighbors=self.max_num_neighbors, loop=True, flow='target_to_source')
+        # edge_index = knn_graph(x=coords, k=self.max_num_neighbors, batch=batch, loop=True, flow='target_to_source')
 
         # edge_index = to_undirected(edge_index, num_nodes=coords.shape[0])
         # edge_index_sparse = SparseTensor.from_edge_index(edge_index, sparse_sizes=(coords.shape[0], coords.shape[0]))
-
-        #################################################################################
-        ############## check neighborhood number within self.radius #####################
-        # # edge_index[0] contains the source nodes (i.e., each node receiving a message)
-        # src = edge_index[0]
-        #
-        # # Compute degrees: how many edges point to each node
-        # num_nodes = coords.size(0)
-        # node_degree = degree(src, num_nodes=num_nodes)
-        #
-        # print(f"Max: {node_degree.max():.0f}, Min: {node_degree.min():.0f}")
-        #################################################################################
-        #################################################################################
 
         # edge attributes
         edge_vec = coords[edge_index[0]] - coords[edge_index[1]]
@@ -660,7 +645,7 @@ class GraphTransformerScoreModel(nn.Module):
                 # h = conv(torch.cat([h, pos, t_per_node], dim=-1), edge_index=edge_index_sparse, edge_attr=edge_attr)
                 h = conv(torch.cat([h, pos, t_per_node], dim=-1), edge_index=edge_index, edge_attr=edge_attr)
             else:
-                h = conv(h + pos_feat + t_per_node, edge_index, edge_attr)
+                h = conv(h + pos_feat + t_per_node, edge_index=edge_index, edge_attr=edge_attr)
 
             # Normalization + residual
             h = self.act(norm(h, batch) + h_res)
@@ -875,7 +860,7 @@ class UNetScoreModel(nn.Module):
 
         # embed utility layers
         self.embed = nn.Sequential(
-            GaussianFourierProjection(embed_dim),
+            GaussianFourierProjection(embed_dim, scale=16),
             nn.Linear(embed_dim, embed_dim),
         )
         self.act = nn.SiLU()

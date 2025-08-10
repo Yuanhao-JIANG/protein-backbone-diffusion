@@ -1,7 +1,7 @@
 import os
 import torch
 import numpy as np
-from model import SE3ScoreModel, UNetScoreModel, GATv2ScoreModel, GINEScoreModel, PNAScoreModel, GPSScoreModel, GraphTransformerScoreModel, GraphUNetScoreModel
+from model import SE3ScoreModel, UNetScoreModel, GATv2ScoreModel, GINEScoreModel, PNAScoreModel, GPSScoreModel, GraphTransformerScoreModel, GraphTransformerWOPosScoreModel, GraphUNetScoreModel
 from sde import VESDE, VPSDE, CosineVPSDE
 from ds_utils import get_dataloaders, CADataset
 from train import train
@@ -30,8 +30,9 @@ def main():
     # model = GINEScoreModel().to(device)
     # model = PNAScoreModel(train_loader).to(device)
     # model = GPSScoreModel().to(device)
-    model = GraphTransformerScoreModel().to(device)
     # model = GraphUNetScoreModel().to(device)
+    # model = GraphTransformerWOPosScoreModel().to(device)
+    model = GraphTransformerScoreModel().to(device)
     # model = UNetScoreModel(truncate=truncate).to(device)
     print(f'{model.__class__.__name__}. Number of learnable parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}')
     # sde = VESDE(sigma_min=0.01, sigma_max=50.0)
@@ -68,8 +69,8 @@ def main():
             npy_dir="dataset/ca_coords",
             out_csv="benchmark/results.csv",
             device=device,
-            limit=1000,
-            max_nodes_per_batch=10000,
+            limit=500,
+            max_nodes_per_batch=15000,
             save_gen_pdb_dir='dataset/gen'
         )
 

@@ -594,7 +594,7 @@ class GraphTransformerScoreModel(nn.Module):
             batch: [N] - batch index for each node
             t: [B] - time for each structure
         """
-        # Compute per-node index within its graph
+        # Compute the per-node index within its graph
         num_graphs = batch.max().item() + 1
         pos_index = torch.empty_like(batch, dtype=torch.float)
         for i in range(num_graphs):
@@ -609,7 +609,7 @@ class GraphTransformerScoreModel(nn.Module):
         # Node features
         h = self.input_proj(coords)  # [N, hidden_dim]
 
-        # Build radius graph to obtain edge index
+        # Build radius graph to get the edge index
         edge_index = radius_graph(coords, r=self.radius, batch=batch, max_num_neighbors=self.max_num_neighbors, loop=True, flow='target_to_source')
         # edge_index = knn_graph(x=coords, k=self.max_num_neighbors, batch=batch, loop=True, flow='target_to_source')
 
@@ -630,7 +630,7 @@ class GraphTransformerScoreModel(nn.Module):
         )  # [num_edges, num_basis]
         t_edge = t_feat[batch][edge_index[0]]   # [num_edges, t_embed_dim]
         t_edge = self.t_edge_proj(t_edge)   # [num_edges, t_edge_proj_dim]
-        # Combine with direction vector
+        # Combine with direction vectors
         edge_attr = torch.cat([edge_scalar, edge_dir, t_edge], dim=-1)  # [num_edges, num_basis + 3 + t_edge_proj_dim]
 
         for conv, norm, pos_mlp, t_mlp in zip(self.convs, self.norms, self.pos_mlps, self.t_mlps):
@@ -650,6 +650,112 @@ class GraphTransformerScoreModel(nn.Module):
             # Normalization + residual
             h = self.act(norm(h, batch) + h_res)
             # h = self.act(norm(h) + h_res) # for batch norm
+
+        return self.output_proj(h)
+
+
+class GraphTransformerWOPosScoreModel(nn.Module):
+    def __init__(self, hidden_dim=128, t_embed_dim=128, t_edge_proj_dim=16, num_layers=5, heads=8, max_num_neighbors=500, radius=5, num_basis=32):
+        super().__init__()
+        self.max_num_neighbors = max_num_neighbors
+        self.radius = radius
+        self.num_basis = num_basis
+        self.heads = heads
+        self.cat_embeddings = True
+
+        # Time embedding
+        self.t_embed = nn.Sequential(
+            GaussianFourierProjection(t_embed_dim, scale=16.),
+            nn.Linear(t_embed_dim, t_embed_dim),
+        )
+
+        self.t_edge_proj = nn.Linear(t_embed_dim, t_edge_proj_dim)
+
+        # Time MLPs per layer
+        self.t_mlps = nn.ModuleList([
+            nn.Linear(t_embed_dim, t_embed_dim) for _ in range(num_layers)
+        ])
+
+        # TransformerConv layers
+        if self.cat_embeddings:
+            in_channels = hidden_dim + t_embed_dim
+        else:
+            in_channels = hidden_dim
+        self.convs = nn.ModuleList([
+            TransformerConv(
+                in_channels=in_channels,
+                out_channels=hidden_dim // heads,
+                heads=heads,
+                concat=True,
+                beta=True,
+                edge_dim=self.num_basis + 3 + t_edge_proj_dim
+            )
+            for _ in range(num_layers)
+        ])
+
+        # Norm layers
+        self.norms = nn.ModuleList([
+            GraphNorm(hidden_dim) for _ in range(num_layers)
+        ])
+
+        # Input/output projection
+        self.input_proj = nn.Linear(3, hidden_dim)
+        self.output_proj = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.SiLU(),
+            nn.Linear(hidden_dim, 3)
+        )
+
+        self.act = nn.SiLU()
+
+    def forward(self, coords, batch, t):
+        """
+        Args:
+            coords: [N, 3] - all coordinates in batch
+            batch: [N] - batch index for each node
+            t: [B] - time for each structure
+        """
+        # Time embedding
+        t_feat = self.act(self.t_embed(t[:, None]))  # [B, t_embed_dim]
+
+        # Node features
+        h = self.input_proj(coords)  # [N, hidden_dim]
+
+        # Build radius graph to get the edge index
+        edge_index = radius_graph(coords, r=self.radius, batch=batch, max_num_neighbors=self.max_num_neighbors, loop=True, flow='target_to_source')
+        # edge_index = knn_graph(x=coords, k=self.max_num_neighbors, batch=batch, loop=True, flow='target_to_source')
+
+        # edge attributes
+        edge_vec = coords[edge_index[0]] - coords[edge_index[1]]
+        edge_dir = F.normalize(edge_vec, dim=-1)
+        edge_length = edge_vec.norm(dim=-1)
+        edge_scalar = soft_one_hot_linspace(
+            edge_length,
+            start=0.0,
+            end=self.radius,
+            number=self.num_basis,
+            basis='gaussian',
+            cutoff=True
+        )  # [num_edges, num_basis]
+        t_edge = t_feat[batch][edge_index[0]]   # [num_edges, t_embed_dim]
+        t_edge = self.t_edge_proj(t_edge)   # [num_edges, t_edge_proj_dim]
+        # Combine with direction vectors
+        edge_attr = torch.cat([edge_scalar, edge_dir, t_edge], dim=-1)  # [num_edges, num_basis + 3 + t_edge_proj_dim]
+
+        for conv, norm, t_mlp in zip(self.convs, self.norms, self.t_mlps):
+            t_per_node = t_mlp(t_feat)[batch]  # [N, t_embed_dim]
+
+            # Residual
+            h_res = h
+
+            # Concat time + feature
+            if self.cat_embeddings:
+                h = conv(torch.cat([h, t_per_node], dim=-1), edge_index=edge_index, edge_attr=edge_attr)
+            else:
+                h = conv(h + t_per_node, edge_index=edge_index, edge_attr=edge_attr)
+
+            # Normalization + residual
+            h = self.act(norm(h, batch) + h_res)
 
         return self.output_proj(h)
 
@@ -959,6 +1065,7 @@ def get_noise_conditioned_score(model, x_t, batch, t, sde):
             isinstance(model, PNAScoreModel) or
             isinstance(model, GPSScoreModel) or
             isinstance(model, GraphTransformerScoreModel) or
+            isinstance(model, GraphTransformerWOPosScoreModel) or
             isinstance(model, GraphUNetScoreModel)
     ):
         return - model(x_t, batch=batch, t=t) / std

@@ -90,8 +90,8 @@ def batch_sampler(
         model, sde, lengths,
         num_steps=1000,
         snr=0.12,
-        n_corr_steps=3,
-        clamp_step=(1e-6, 5e-2),   # safety: min/max corrector step size
+        n_corr_steps=2,
+        clamp_step=(5e-6, 5e-2),   # safety: min/max corrector step size
         eps=1e-3,
         device="cuda"
 ):
@@ -116,12 +116,11 @@ def batch_sampler(
     N = sum(lengths)
     B = len(lengths)
 
-    # reproducible noise
+    # initial noise
     x = torch.randn(N, 3, device=device)
 
     # batch vector mapping nodes -> graph id
-    batch = torch.cat([torch.full((l,), i, dtype=torch.long, device=device)
-                      for i, l in enumerate(lengths)], dim=0)
+    batch = torch.cat([torch.full((l,), i, dtype=torch.long, device=device) for i, l in enumerate(lengths)], dim=0)
 
     # time grid (avoid exactly 1 and 0)
     t_array = torch.linspace(1.0 - eps, eps, num_steps, device=device)

@@ -172,7 +172,7 @@ def run_benchmark(
     for lens in tqdm(batches, desc="Benchmark (batched)"):
         # sample a batch of structures with given lengths
         try:
-            gens = batch_sampler(model=model, sde=sde, lengths=lens, n_corr_steps=2, device=device)  # List[np.ndarray], each [L_i,3]
+            gens = batch_sampler(model=model, sde=sde, lengths=lens, snr=0.16, n_corr_steps=1, device=device)  # List[np.ndarray], each [L_i,3]
             assert len(gens) == len(lens)
         except Exception as e:
             # write errors for this batch
@@ -402,7 +402,7 @@ def plot_metric_distribution(
     metric: 'rmsd' or 'tm' (flexible: 'tm (max)' also handled)
     bins: number of histogram bins
     xlim: optional x-axis limits
-    add_ref_lines: add standard threshold lines (RMSD: 2/4/6 Å, TM: 0.3/0.5)
+    add_ref_lines: add standard threshold lines (RMSD: 2/4/6 A, TM: 0.3/0.5)
     density: normalize histograms to probability density
     alpha: transparency for overlays
     figsize: figure size
@@ -510,6 +510,7 @@ def plot_metric_vs_length(
     s: float = 9.0,
     jitter: float = 0.0,
     add_linear_trend: bool = True,
+    add_ref_lines: bool = True,
     figsize: tuple[int, int] = (8, 5),
     save_path: Optional[str] = None,
 ):
@@ -524,6 +525,7 @@ def plot_metric_vs_length(
     s: marker size
     jitter: optional horizontal jitter (in residues) to reduce overplotting
     add_linear_trend: fit and plot y = a*L + b per model (ordinary least squares)
+    add_ref_lines: add reference lines
     figsize: figure size
     save_path: optional path to save PNG
     """
@@ -552,8 +554,9 @@ def plot_metric_vs_length(
             plt.plot(xx, yy, linewidth=1)
 
     # Reference lines (horizontal) help interpret quality bands
-    for v in _ref_lines_for_metric(metric_col):
-        plt.axhline(v, linestyle="--", linewidth=1)
+    if add_ref_lines:
+        for v in _ref_lines_for_metric(metric_col):
+            plt.axhline(v, linestyle="--", linewidth=1)
 
     plt.xlabel("L (residues)")
     plt.ylabel(metric_col.upper())

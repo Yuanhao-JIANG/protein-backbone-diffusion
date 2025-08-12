@@ -69,7 +69,7 @@ def main():
         files = {
             "TransformerConv+PE (5-layer Res)": "./benchmark/results_gnn_pos.csv",
             "UNet (padded)": "./benchmark/results_unet.csv",
-            "TransformerConv w/o PE": "./benchmark/results_gnn_wo_pos.csv",
+            # "TransformerConv w/o PE": "./benchmark/results_gnn_wo_pos.csv",
         }
         df_all = load_all(files)
 
@@ -78,16 +78,16 @@ def main():
         print(summary)
 
         # 1) Distribution
-        plot_metric_distribution(df_all, metric="rmsd", save_path="./benchmark/rmsd_dist.png")
-        plot_metric_distribution(df_all, metric="tm", save_path="./benchmark/tm_dist.png")
+        plot_metric_distribution(df_all, metric="rmsd", add_ref_lines=False, save_path="./benchmark/rmsd_dist.png")
+        plot_metric_distribution(df_all, metric="tm", add_ref_lines=False, save_path="./benchmark/tm_dist.png")
 
         # 2) Box / Violin
-        plot_metric_box_violin(df_all, metric="rmsd", kind="box", save_path="./benchmark/rmsd_box.png")
-        plot_metric_box_violin(df_all, metric="tm", kind="violin", save_path="./benchmark/tm_violin.png")
+        plot_metric_box_violin(df_all, metric="rmsd", kind="box", add_ref_lines=False, save_path="./benchmark/rmsd_box.png")
+        plot_metric_box_violin(df_all, metric="tm", kind="box", add_ref_lines=False, save_path="./benchmark/tm_box.png")
 
         # 3) Scatter vs. L with trend lines
-        plot_metric_vs_length(df_all, metric="rmsd", add_linear_trend=True, save_path="./benchmark/rmsd_vs_L.png")
-        plot_metric_vs_length(df_all, metric="tm", add_linear_trend=True, save_path="./benchmark/tm_vs_L.png")
+        plot_metric_vs_length(df_all, metric="rmsd", add_linear_trend=True, add_ref_lines=False, save_path="./benchmark/rmsd_vs_L.png")
+        plot_metric_vs_length(df_all, metric="tm", add_linear_trend=True, add_ref_lines=False, save_path="./benchmark/tm_vs_L.png")
     else:
         raise ValueError(f"Unknown mode: {mode}")
 

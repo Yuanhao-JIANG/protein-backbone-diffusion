@@ -69,7 +69,7 @@ def main():
         files = {
             "TransformerConv+PE (5-layer Res)": "./benchmark/results_gnn_pos.csv",
             "UNet (padded)": "./benchmark/results_unet.csv",
-            # "TransformerConv w/o PE": "./benchmark/results_gnn_wo_pos.csv",
+            "TransformerConv w/o PE": "./benchmark/results_gnn_wo_pos.csv",
         }
         df_all = load_all(files)
 

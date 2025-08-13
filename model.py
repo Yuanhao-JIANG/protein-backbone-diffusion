@@ -573,9 +573,6 @@ class GraphTransformerScoreModel(nn.Module):
         self.norms = nn.ModuleList([
             GraphNorm(hidden_dim) for _ in range(num_layers)
         ])
-        # self.norms = nn.ModuleList([
-        #     MeanSubtractionNorm() for _ in range(num_layers)
-        # ])
 
         # Input/output projection
         self.input_proj = nn.Linear(3, hidden_dim)
@@ -594,7 +591,7 @@ class GraphTransformerScoreModel(nn.Module):
             batch: [N] - batch index for each node
             t: [B] - time for each structure
         """
-        # Compute the per-node index within its graph
+        # Positional encoding (based on position index in the chain)
         num_graphs = batch.max().item() + 1
         pos_index = torch.empty_like(batch, dtype=torch.float)
         for i in range(num_graphs):
@@ -613,25 +610,43 @@ class GraphTransformerScoreModel(nn.Module):
         edge_index = radius_graph(coords, r=self.radius, batch=batch, max_num_neighbors=self.max_num_neighbors, loop=True, flow='target_to_source')
         # edge_index = knn_graph(x=coords, k=self.max_num_neighbors, batch=batch, loop=True, flow='target_to_source')
 
-        # edge_index = to_undirected(edge_index, num_nodes=coords.shape[0])
-        # edge_index_sparse = SparseTensor.from_edge_index(edge_index, sparse_sizes=(coords.shape[0], coords.shape[0]))
+        # messages: src -> dst
+        src, dst = edge_index[0], edge_index[1]
 
-        # edge attributes
-        edge_vec = coords[edge_index[0]] - coords[edge_index[1]]
-        edge_dir = F.normalize(edge_vec, dim=-1)
-        edge_length = edge_vec.norm(dim=-1)
+        # Edge geometry for src->dst
+        edge_vec = coords[src] - coords[dst]  # direction: src -> dst
+        edge_len = edge_vec.norm(dim=-1)  # [E]
+        edge_dir = F.normalize(edge_vec, dim=-1)  # [E, 3]
+        edge_dir = torch.nan_to_num(edge_dir, nan=0.0)  # guard self-loops (zero vec)
         edge_scalar = soft_one_hot_linspace(
-            edge_length,
+            edge_len,
             start=0.0,
             end=self.radius,
             number=self.num_basis,
             basis='gaussian',
             cutoff=True
-        )  # [num_edges, num_basis]
-        t_edge = t_feat[batch][edge_index[0]]   # [num_edges, t_embed_dim]
-        t_edge = self.t_edge_proj(t_edge)   # [num_edges, t_edge_proj_dim]
-        # Combine with direction vectors
-        edge_attr = torch.cat([edge_scalar, edge_dir, t_edge], dim=-1)  # [num_edges, num_basis + 3 + t_edge_proj_dim]
+        )  # [E, num_basis]
+
+        # Attributes for forward edges
+        edge_attr_fwd = torch.cat([
+            edge_scalar,
+            edge_dir,
+            self.t_edge_proj(t_feat[batch][src])
+        ], dim=-1)  # [E, num_basis + 3 + t_edge_proj_dim]
+
+        # Build reverse edges and attributes (dst->src)
+        edge_index_rev = torch.stack([dst, src], dim=0)
+
+        # Attributes for reverse edges: same scaler, the direction flips sign, time feature comes from the new source (= old dst)
+        edge_attr_rev = torch.cat([
+            edge_scalar,  # same lengths/basis
+            -edge_dir,  # flip direction
+            self.t_edge_proj(t_feat[batch][dst])  # t from the reverse source
+        ], dim=-1)
+
+        # Concatenate to make the graph bidirectional
+        edge_index = torch.cat([edge_index, edge_index_rev], dim=1)
+        edge_attr = torch.cat([edge_attr_fwd, edge_attr_rev], dim=0)
 
         for conv, norm, pos_mlp, t_mlp in zip(self.convs, self.norms, self.pos_mlps, self.t_mlps):
             t_per_node = t_mlp(t_feat)[batch]  # [N, t_embed_dim]

@@ -1,15 +1,20 @@
-\documentclass[12pt]{report}
+\documentclass[a4paper,12pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{parskip} % Removes paragraph indentation, adds vertical space between paragraphs
+\usepackage{
+    abraces, algorithm, algpseudocode, amsfonts, amsmath, amssymb, amsthm, bm, enumitem, graphicx, mathtools, subcaption
+}
+\usepackage{natbib}
+\usepackage{newtxtext,newtxmath} % modern, Times-like + proper math
+\usepackage{zi4} % provides the Inconsolata monospaced font, but in a LaTeX-ready form
+\usepackage[raggedright]{titlesec} % in case for long titles
+\usepackage[breaklinks]{hyperref} % allow breaklines for references
+\usepackage{cleveref} % load after hyperref package
+\usepackage[a4paper,left=3cm,right=3cm,top=3cm,bottom=3cm]{geometry}
 \title{Constrained Diffusion Models}
 \date{\today}
 \author{Yuanhao JIANG}
 \flushbottom
-\usepackage{
-    abraces, algorithm, algpseudocode, amsfonts, amsmath, amssymb, amsthm, array, bm, cite, diagbox, enumitem, graphicx, geometry, mathtools, subcaption, threeparttable
-}
-\usepackage[raggedright]{titlesec}
-\usepackage[breaklinks]{hyperref}
-\usepackage{cleveref}
-\geometry{margin=1in}
 % \graphicspath{folderA}
 
 % allow page breaks inside equations
@@ -47,30 +52,77 @@
 
 
 \begin{document}
-\pagenumbering{roman}
-\maketitle
+\pagenumbering{gobble} % Turn off page numbering until first section.
 
+% Title page - needs Stats_Logo.png
+\begin{titlepage}
+\begin{center}
+\vspace{1cm}
+\textsf{\Huge{University of Oxford \\}}
+\vspace{1cm}
+\begin{figure}[htb]
+\centering
+\includegraphics[scale=.8]{./imgs/stats_logo_RGB.jpg}
+\end{figure}
+\vspace{2.0cm}
+\Huge{Here is a very long title which should spread over two or more lines.\\}
+\vspace{2.0cm}
+\large{ by \\[14pt] Yuanhao Jiang \\[8pt] Wolfson College} \\
+\vspace{2.2cm}
+\large{A dissertation submitted in partial fulfilment of the degree of Master of Science in Applied Statistics.
+} \\
+\vspace{.5cm}
+\large{\emph{Department of Statistics, 24--29 St Giles, \\Oxford, OX1 3LB}} \\
+\vspace{1.0cm}
+\large{September 2025} \\
+\end{center}
+\end{titlepage}
+\clearpage
+
+This is my own work (except where otherwise indicated)
+\vspace{2.5in}
+
+\begin{center}
+Candidate: Full Name\\
+\vspace{1.0in}
+Signed:.................................\\
+\vspace{1.0in}
+Date:...................................
+\end{center}
+\clearpage
 \begin{abstract}
-    Abstract
+
+The abstract should go here.
+
 \end{abstract}
+\clearpage
+\vspace*{2in}
+\begin{center}
+\textbf{Acknowledgements}
+\end{center}
+
+I would like to thank the following:
+\clearpage
 
 \tableofcontents
-\addcontentsline{toc}{chapter}{Contents}
-\newpage
+\listoffigures
+\listoftables
+\clearpage
+
 \pagenumbering{arabic}
 
-\chapter{Introduction}
-\section{Background on Diffusion Models}
+\section{Introduction}
+\subsection{Background on Diffusion Models}
 Diffusion models have recently emerged as one of the most powerful classes of deep generative models, achieving state-of-the-art performance in a wide range of domains, most prominently in image generation \cite{hoDenoisingDiffusionProbabilistic2020, dhariwal2021DiffusionModelsBeat}. These models construct a forward process that gradually corrupts data with Gaussian noise and train a neural network to approximate the reverse-time dynamics that iteratively remove noise. The resulting generative process is both probabilistically principled and empirically effective, offering advantages in sample quality and training stability compared to earlier paradigms such as variational autoencoders (VAEs) \cite{kingma2022AutoEncodingVariationalBayes} and generative adversarial networks (GANs) \cite{goodfellow2020GenerativeAdversarialNetworks}.
 
 Score-based diffusion models \cite{song2020score,songMaximumLikelihoodTraining2021} improve discrete-time denoising diffusion probabilistic models with continuous-time stochastic differential equations (SDEs). Instead of directly parameterising the reverse process, they learn the score function---the gradient of the log-density of the noisy distribution---which enables the use of a variety of forward SDEs and corresponding reverse-time samplers. This framework has proven highly flexible and has been successfully applied to domains including image generation, audio synthesis, point clouds, and molecular data.
 
-\section{Motivation: Protein Structure Generation}
+\subsection{Motivation: Protein Structure Generation}
 Proteins are essential macromolecules whose biological functions are determined by their three-dimensional structures. The ability to generate novel protein structures has immense implications for biomedical science, including de novo protein design, drug discovery, and enzyme engineering. However, protein structures are highly constrained: bond lengths and angles must remain within narrow physical ranges, torsional angles follow characteristic distributions, and valid folds must satisfy global topological requirements. These constraints make the generative task significantly more challenging than in image or text domains.
 
 Recent advances in deep learning, most notably AlphaFold \cite{jumper2021HighlyAccurateProtein}, have demonstrated the power of data-driven models in predicting native structures from sequence. Yet, the problem of generating realistic, diverse backbones without explicit sequence conditioning remains an open challenge.
 
-\section{Diffusion Models for Protein Structures}
+\subsection{Diffusion Models for Protein Structures}
 The probabilistic formulation of score-based diffusion models makes them a natural candidate for modelling protein structures. Unlike GANs, diffusion models provide a likelihood-based framework, and unlike VAEs, they avoid restrictive parametric assumptions about the latent space. Moreover, their iterative denoising dynamics align well with the notion of refining approximate structures toward physically plausible conformations.
 
 Recent work has demonstrated the potential of diffusion-based approaches in protein modelling and design. For example, RFdiffusion \cite{watsonNovoDesignProtein2023} introduced a powerful framework for de novo protein design, achieving unprecedented results in generating novel folds and functional structures. FoldingDiff \cite{wuProteinStructureGeneration2024} proposed a diffusion-based model that explicitly learns the folding process, while DiffDock \cite{yimDiffusionModelsProtein2024} applied diffusion models to protein-ligand docking, highlighting the versatility of the paradigm in structural biology. These developments underscore the promise of diffusion generative models in capturing the rich geometric and biophysical constraints inherent to protein structures.
@@ -80,11 +132,11 @@ In this work, we consider the protein backbone as a graph where nodes correspond
 This enables the use of graph neural networks (GNNs) \cite{scarselliGraphNeuralNetwork2009} as score models, incorporating geometric information through radial basis encodings, directional vectors, and positional embeddings. 
 By training such models on large structural datasets, it becomes possible to learn score functions over protein conformational space and to generate new backbone structures through reverse diffusion.
 
-\section{Structure of the Dissertation}
-\Cref{chapter:SBD} presents the theoretical foundations of score-based diffusion, the representation of protein backbones, and the model architectures explored. \Cref{chapter:Experiments} describes the experimental setup, training procedure, and evaluation metrics, and reports quantitative and qualitative results. And discusses the implications of our findings, limitations, and avenues for future research. \Cref{chapter:Conclusion} concludes the dissertation by summarising contributions and highlighting potential future directions.
+\subsection{Structure of the Dissertation}
+\Cref{sec:SBD} presents the theoretical foundations of score-based diffusion, the representation of protein backbones, and the model architectures explored. \Cref{sec:Experiments} describes the experimental setup, training procedure, and evaluation metrics, and reports quantitative and qualitative results. And discusses the implications of our findings, limitations, and avenues for future research. \Cref{sec:Conclusion} concludes the dissertation by summarising contributions and highlighting potential future directions.
 
-\chapter{Score-Based Diffusion for Generative Modelling}\label{chapter:SBD}
-\section{Background and Motivation}
+\section{Score-Based Diffusion for Generative Modelling}\label{sec:SBD}
+\subsection{Background and Motivation}
 Generative modelling aims to learn a distribution from which new samples can be drawn that resemble those observed in a dataset. Classical approaches include variational autoencoders (VAEs)~\cite{kingma2022AutoEncodingVariationalBayes}, which maximise a variational lower bound on the likelihood, and generative adversarial networks (GANs)~\cite{goodfellow2020GenerativeAdversarialNetworks}, which frame generation as an adversarial game. While each of these paradigms has been successful, they also suffer from characteristic drawbacks such as blurry reconstructions (VAEs) and mode collapse (GANs).
 
 Diffusion models represent a more recent class of generative models that address many of these limitations. The central idea is deceptively simple: one defines a forward process that gradually corrupts data with noise until the signal is destroyed, and then learns a reverse process that reconstructs data from noise. By formulating the forward process as a diffusion and training a neural network to approximate the reverse dynamics, diffusion models combine the flexibility of deep networks with the probabilistic rigour of latent-variable models. 
@@ -94,11 +146,11 @@ In their original formulation, denoising diffusion probabilistic models (DDPMs)~
 
 This chapter develops the theoretical foundations of score-based diffusion models in detail. We begin with the definition of the forward diffusion process, proceed to the derivation of the reverse-time dynamics, introduce score matching as the training objective, and describe practical sampling algorithms and noise schedules. Together, these elements form the mathematical basis for applying diffusion models to protein backbone generation in later chapters.
 
-\section{Forward Diffusion Processes}
+\subsection{Forward Diffusion Processes}
 The first component of a diffusion generative model is the forward, or noising, process. 
 This process gradually perturbs the data distribution into a tractable prior distribution, typically a standard Gaussian. The key requirement is that this transformation be both easy to sample from and analytically tractable, so that training objectives can be computed efficiently. 
 
-\subsection{Discrete-Time Formulation}
+\subsubsection{Discrete-Time Formulation}
 Denoising diffusion probabilistic models (DDPMs)~\cite{hoDenoisingDiffusionProbabilistic2020} define the forward process as a Markov chain of \(T\) steps:
 \begin{align*}
     q\left(x_{1:T}\mid x_0\right)=\prod_{t=1}^{T}q\left(x_t|x_{t-1}\right),
@@ -117,7 +169,7 @@ This design ensures that after sufficiently many steps, the distribution of \(x_
     where $\alpha_t = 1 - \beta_t$ and $\bar \alpha_t = \prod_{s=1}^t \alpha_s$. This closed form is crucial for training, as it allows drawing noisy samples \(x_t\) without explicitly simulating all intermediate steps.
 \end{remark}
 
-\subsection{Continuous-Time Formulation}
+\subsubsection{Continuous-Time Formulation}
 Song et al.~\cite{song2020score} generalised the discrete diffusion process to continuous time by taking the limit as \(T \to \infty\) and \(\beta_t \to 0\). In this setting, the forward process can be expressed as a stochastic differential equation (SDE) of the form
 \begin{align}\label{eq:forward_sde}
     dx = f(x,t)\,dt + g(t)\,dW_t,
@@ -128,7 +180,7 @@ where \(W_t\) is the Brownian motion, \(f(x,t)\) is a drift term, and \(g(t)\) c
     \item \textbf{Variance-exploding (VE) SDE}: variance grows unbounded as $t \to T$, pushing the distribution to white noise.  
     \item \textbf{Sub-variance-preserving (sub-VP) SDE}: an interpolation between VP and VE.  
 \end{itemize}
-\subsection{VP SDE}
+\subsubsection{VP SDE}
 %TODO
 Use Variance Preserving (VP) SDE \cite{song2020score}
 \begin{align}\label{eq:VPSDE}
@@ -147,7 +199,7 @@ Notice that \cref{eq:perturbation_ddpm} is exactly the discrete perturbation sch
 This continuous formulation provides a flexible mathematical foundation that unifies discrete DDPMs with stochastic differential equations, and it allows the use of stochastic calculus tools to analyse and manipulate diffusion models. 
 In particular, it enables the derivation of the reverse-time SDE, which defines the generative process and will be introduced in the next section.
 
-\section{Reverse-Time SDE}
+\subsection{Reverse-Time SDE}
 The forward diffusion process, whether in discrete or continuous form, progressively perturbs data until its distribution approaches a simple prior such as an isotropic Gaussian. 
 To perform generative modelling, we require a process that inverts this corruption: starting from noise and evolving back toward the data distribution. 
 This is formalised through the theory of time-reversal for diffusion processes.
@@ -164,7 +216,7 @@ The reverse conditionals are modelled as Gaussians
 where $\mu_\theta$ and $\Sigma_\theta$ are learned using a neural network. 
 % Training then consists of minimising the Kullback-Leibler divergence between the true posterior $q(x_{t-1} \mid x_t, x_0)$ and the model distribution $p_\theta(x_{t-1} \mid x_t)$. This can be shown to reduce to a simple denoising score matching objective, where the network predicts the noise that was added at each step.
 
-\subsection{Continuous-Time Reverse SDE}
+\subsubsection{Continuous-Time Reverse SDE}
 In the continuous-time setting, Anderson~\cite{andersonReversetimeDiffusionEquation1982} established that the time reversal of an It\^{o} SDE \eqref{eq:forward_sde}
 is itself an SDE with modified drift:
 \begin{align}\label{eq:reverse_sde}
@@ -172,14 +224,14 @@ is itself an SDE with modified drift:
 \end{align}
 where \(\bar W_t\) is the Brownian motion running backward in time. This equation defines the reverse-time SDE. It depends explicitly on the score function \(\nabla_x \log p_t(x)\) of the forward process marginal distribution \(p_t(x)\). Thus, if one can estimate the score function accurately for all times \(t\), it becomes possible to simulate the reverse SDE and generate samples from the data distribution.
 
-\subsection{Implications for Generative Modelling}
+\subsubsection{Implications for Generative Modelling}
 This result provides the key insight underlying score-based diffusion: generative modelling reduces to score estimation. 
 Rather than directly modelling likelihoods or sampling distributions, we train a neural network \(s_\theta(x,t)\) to approximate the score \(\nabla_x \log p_t(x)\). The network is then used to guide the drift of the reverse SDE, producing realistic samples when integrated from Gaussian noise at \(t = T\) back to \(t = 0\).
 
-\section{Score Matching and Training Objective}
+\subsection{Score Matching and Training Objective}
 The reverse-time SDE depends on the score function \(\nabla_x \log p_t(x)\), which is generally intractable. Thus, the central learning problem in score-based diffusion is to approximate this score with a neural network \(s_\theta(x,t)\). Training requires a loss function that encourages \(s_\theta\) to match the true score across noise levels.
 
-\subsection{Denoising Score Matching}
+\subsubsection{Denoising Score Matching}
 For each time \(t\), the score function of \(x_t\) can be trained via
 \begin{align*}
     \mathbb{E}_{p\left(x_t\right)}\left[\norm{\nabla_{x_t}\log p\left(x_t\right)-s_{\theta}\left(x_t, t\right)}_2^2\right].
@@ -197,7 +249,7 @@ Note that the term \(\tr\left(\nabla_{x_t}s_{\theta}\left(x_t,t\right)\right)\) 
 \end{align*}
 Vincent~\cite{vincentConnectionScoreMatching2011} showed that training a denoising autoencoder to reconstruct clean data from corrupted observations is equivalent to score matching under certain conditions. This connection underpins the training of diffusion models: the neural network is trained to denoise \(x_t\) into \(x_0\), thereby learning the score function implicitly.
 
-\subsection{Objective in Continuous-Time Diffusion}%TODO: NCSN, TDSN
+\subsubsection{Objective in Continuous-Time Diffusion}%TODO: NCSN, TDSN
 The overall objective is given by a weighted sum (or average)
 \begin{align*}
     J^{\text{DSM}}=\mathbb{E}_{t\sim\mathcal{U}(0,1)}\left[\lambda\left(t\right)J^{\text{DSM}}_t\right].
@@ -209,13 +261,13 @@ Song et al.~\cite{song2020score} formulated the training objective for continuou
 \end{align*}
 where \(q(x_t \mid x_0)\) denotes the forward diffusion distribution, and $\lambda(t)$ is a time-dependent weighting function. The target score \(\nabla_x \log q(x_t \mid x_0)\) has a closed form under the Gaussian forward process, enabling efficient training. 
 
-\subsection{Summary}
+\subsubsection{Summary}
 The learning problem for score-based diffusion therefore reduces to denoising score matching: the neural network $s_\theta(x,t)$ is trained to approximate $\nabla_x \log p_t(x)$ across different noise levels. Once trained, this network can be used to drive the reverse SDE, enabling generation of new samples from Gaussian noise.
 
-\section{Sampling Procedures}
+\subsection{Sampling Procedures}
 Once the score network \(s_\theta(x,t)\) has been trained, new samples can be generated by simulating the reverse diffusion process. This requires integrating the reverse-time SDE \eqref{eq:reverse_sde} starting from Gaussian noise \(x(T) \sim \mathcal{N}(0,I)\) and evolving toward \(t=0\).
 
-\subsection{Reverse SDE Sampling}
+\subsubsection{Reverse SDE Sampling}
 The simplest approach is to discretise the reverse SDE using the Euler-Maruyama method. 
 For a decreasing sequence of time steps \(\{t_i\}_{i=0}^N\) with \(t_N = T\) and \(t_0 = 0\), the update rule is
 \begin{align*}
@@ -225,7 +277,7 @@ where $z_i \sim \mathcal{N}(0,I)$ and $\Delta t = t_{i-1} - t_i$.
 This procedure generates approximate samples from the data distribution. 
 While straightforward, its quality depends heavily on the number of discretisation steps: smaller steps yield higher fidelity at the cost of computational time.
 
-\subsection{Predictor-Corrector Sampling}
+\subsubsection{Predictor-Corrector Sampling}
 The Predictor-Corrector sampler was proposed by \cite{song2020score} as an improved sampling method. It is based on combining two components:
 \begin{enumerate}
   \item \textbf{Predictor step:} one update using the reverse SDE (as above), advancing the trajectory toward lower noise levels.  
@@ -238,21 +290,21 @@ The Predictor-Corrector sampler was proposed by \cite{song2020score} as an impro
 By alternating predictor and corrector steps, the algorithm achieves a better trade-off between quality and efficiency than pure reverse SDE sampling. 
 In practice, only a few corrector iterations per time step are needed to significantly improve sample fidelity.
 
-\subsection*{Summary}
+\subsubsection{Summary}
 
 Sampling in score-based diffusion models is performed by simulating the reverse SDE, either directly or with predictor-corrector refinements. Both methods start from Gaussian noise and progressively refine the signal into a clean sample, guided by the score network. In this dissertation, we adopt the variance-preserving (VP) SDE with a cosine noise schedule and use predictor-corrector sampling as our default procedure.
 
-\section{Noise Schedules}
+\subsection{Noise Schedules}
 The design of the noise schedule plays a central role in the performance of score-based diffusion models. 
 The schedule determines how the variance of the forward diffusion process evolves over time, which directly influences both training stability and the quality of generated samples.
 
-\subsection*{Linear Schedules}
+\subsubsection*{Linear Schedules}
 
 In the original DDPM formulation~\cite{hoDenoisingDiffusionProbabilistic2020}, the variance schedule $\{\beta_t\}_{t=1}^T$ was chosen to increase linearly from a small value to a larger one over $T$ steps. 
 Equivalently, in the continuous SDE formulation, this corresponds to a linear growth of the noise rate $\beta(t)$. 
 While simple, this schedule can be suboptimal: early time steps may inject too little noise (leading to poor coverage of high-noise regions during training), while later steps may over-noise the data (resulting in wasted computation). 
 
-\subsection*{Cosine Variance-Preserving Schedule}
+\subsubsection*{Cosine Variance-Preserving Schedule}
 Nichol and Dhariwal~\cite{nicholImprovedDenoisingDiffusion2021} proposed a cosine schedule for the variance-preserving (VP) SDE, which has since become widely adopted. 
 Instead of linear growth, the cosine schedule ensures a smoother increase in noise variance, matching the cumulative signal-to-noise ratio (SNR) to a cosine function:
 \begin{align*}
@@ -278,16 +330,16 @@ This schedule maintains higher signal levels for longer, enabling the score netw
 \end{remark}
 Empirically, the cosine VP schedule improves sample quality and accelerates convergence compared to linear schedules. It balances the trade-off between injecting sufficient noise for diversity and preserving enough signal for stable training. Moreover, because it avoids excessively noisy late stages, fewer discretisation steps are needed during sampling, reducing computational cost.
 
-\subsection*{Choice in This Work}
+\subsubsection*{Choice in This Work}
 In this dissertation, we adopt the cosine VP schedule as the forward diffusion process. This choice is motivated by its demonstrated effectiveness in image and structural generative tasks, and by its compatibility with the variance-preserving SDE formulation used in our score model. All experiments in later chapters therefore use the cosine VP schedule as the default setting.
 
-\section{Summary}
+\subsection{Summary}
 This chapter has established the theoretical foundations of score-based diffusion models, which form the core generative framework employed in this dissertation. We began by introducing the forward diffusion process, first in its discrete DDPM formulation and then in its continuous-time generalisation as a stochastic differential equation. We then derived the reverse-time SDE, showing that generative modelling reduces to the problem of score estimation. This led naturally to the denoising score matching objective, which enables training a neural network to approximate the score function across all noise levels. Finally, we discussed practical sampling algorithms, including reverse SDE integration and predictor-corrector methods, and examined the role of noise schedules, with particular emphasis on the cosine variance-preserving schedule adopted in this work.
 
 Together, these elements provide a principled probabilistic framework for deep generative modelling. Unlike GANs or VAEs, score-based diffusion models avoid common issues such as mode collapse or restrictive latent assumptions, while offering strong theoretical guarantees and flexible sampling procedures. The remainder of this dissertation builds upon these foundations to adapt score-based diffusion to the setting of protein backbone generation, where structural constraints and geometric representations introduce unique modelling challenges.
 
-\chapter{Experiments}\label{chapter:Experiments}
-\section{Data}
+\section{Experiments}\label{sec:Experiments}
+\subsection{Data}
 CATH S40 domain structures, it contains non-redundant data with no pair of domains with \(\geq 40\%\) sequence similarity (according to BLAST).
 
 Extract the \(C\alpha\) (alpha carbon) atoms for each protein domain in the dataset, so each data is a 3D point cloud of \(C\alpha\) atoms
@@ -295,29 +347,32 @@ Extract the \(C\alpha\) (alpha carbon) atoms for each protein domain in the data
     x = \left[x_1,x_2,...,x_l\right],\quad x_i\in\mathbb{R}^3\quad\forall i=1,...,l,
 \end{align*}
 where \(l\) the number of \(C\alpha\) atoms (residues) is varying for different domain.
-\section{Model Architecture}
-\subsection{Message Passing Layers}
-\subsubsection{Graph Neural Networks}
+\subsection{Model Architecture}
+\subsubsection{Message Passing Layers}
+\paragraph{Graph Neural Networks}
 Graph Neural Networks (GNNs) were first introduced in the seminal work by \cite{scarselliGraphNeuralNetwork2009}, which proposed a recursive framework for learning over graphs. The field progressed significantly with the development of Graph Convolutional Networks (GCNs) by \cite{kipfSemiSupervisedClassificationGraph2017}, which introduced a scalable and differentiable message-passing scheme. Further, Graph Attention Networks \cite{velickovicGraphAttentionNetworks2018}, brought in attention mechanisms to improve expressiveness and performance. To better model the complicated structure, I use the graph transformer network \cite{shiMaskedLabelPrediction2021} which incorporates multi-head self-attention over local neighborhoods.
-\subsection{Time Conditioning via Gaussian Fourier Features}
+\subsubsection{Time Conditioning via Gaussian Fourier Features}
 Following \cite{song2020score}, we embed the diffusion time step \(t\in\left(0,1\right)\) using random Fourier features \cite{tancikFourierFeaturesLet2020}
 \begin{align*}
     \gamma\left(t\right)=\left[\cos\left(2\pi Wt\right),\sin\left(2\pi Wt\right)\right],\quad W\sim\mathcal{N}\left(0,s^2\right),
 \end{align*}
 to provide continuous and expressive encoding of time.
-\subsection{Positional Encoding for Node Order Awareness}
+\subsubsection{Positional Encoding for Node Order Awareness}
 Graph-based models are inherently invariant to node permutations, which can be a limitation when modeling protein backbones, where the sequential order of residues encodes biologically meaningful directionality along the chain. To inject this ordering information, each node is assigned a scalar index \(p\in\left[0,1\right]\) representing its normalized position in the sequence. This index is first mapped to a high-dimensional representation using a sinusoidal encoding \cite{vaswaniAttentionAllYou2017}
 \begin{align*}
     \rho\left(p\right)=\left[\sin\left(\omega_1 p\right),\cos\left(\omega_1 p\right),\sin\left(\omega_2 p\right),\cos\left(\omega_2 p\right),...\right]
 \end{align*}
 where \(w_k\)'s are fixed frequencies. The resulting positional embedding is then passed through a learnable transformation, such as a multilayer perceptron (MLP), before being incorporated into the model
-\subsection{Residual Network Architecture}
+\subsubsection{Residual Network Architecture}
 Overall residual connections are used at each GNN layer.
 
-\chapter{Conclusion}\label{chapter:Conclusion}
+\section{Conclusion}\label{sec:Conclusion}
 
+\section*{Appendix}
+\begin{verbatim}
+Put your R code here.
+\end{verbatim}
 
 \bibliographystyle{apalike}
 \bibliography{references}
-\addcontentsline{toc}{chapter}{Bibliography}
 \end{document}

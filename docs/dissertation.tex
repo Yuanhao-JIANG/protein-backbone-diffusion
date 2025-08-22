@@ -59,7 +59,234 @@
 \newpage
 \pagenumbering{arabic}
 
-\chapter{paperworks}
+\chapter{Introduction}
+\section{Background on Diffusion Models}
+Diffusion models have recently emerged as one of the most powerful classes of deep generative models, achieving state-of-the-art performance in a wide range of domains, most prominently in image generation \cite{hoDenoisingDiffusionProbabilistic2020, dhariwal2021DiffusionModelsBeat}. These models construct a forward process that gradually corrupts data with Gaussian noise and train a neural network to approximate the reverse-time dynamics that iteratively remove noise. The resulting generative process is both probabilistically principled and empirically effective, offering advantages in sample quality and training stability compared to earlier paradigms such as variational autoencoders (VAEs) \cite{kingma2022AutoEncodingVariationalBayes} and generative adversarial networks (GANs) \cite{goodfellow2020GenerativeAdversarialNetworks}.
+
+Score-based diffusion models \cite{song2020score,songMaximumLikelihoodTraining2021} improve discrete-time denoising diffusion probabilistic models with continuous-time stochastic differential equations (SDEs). Instead of directly parameterising the reverse process, they learn the score function---the gradient of the log-density of the noisy distribution---which enables the use of a variety of forward SDEs and corresponding reverse-time samplers. This framework has proven highly flexible and has been successfully applied to domains including image generation, audio synthesis, point clouds, and molecular data.
+
+\section{Motivation: Protein Structure Generation}
+Proteins are essential macromolecules whose biological functions are determined by their three-dimensional structures. The ability to generate novel protein structures has immense implications for biomedical science, including de novo protein design, drug discovery, and enzyme engineering. However, protein structures are highly constrained: bond lengths and angles must remain within narrow physical ranges, torsional angles follow characteristic distributions, and valid folds must satisfy global topological requirements. These constraints make the generative task significantly more challenging than in image or text domains.
+
+Recent advances in deep learning, most notably AlphaFold \cite{jumper2021HighlyAccurateProtein}, have demonstrated the power of data-driven models in predicting native structures from sequence. Yet, the problem of generating realistic, diverse backbones without explicit sequence conditioning remains an open challenge.
+
+\section{Diffusion Models for Protein Structures}
+The probabilistic formulation of score-based diffusion models makes them a natural candidate for modelling protein structures. Unlike GANs, diffusion models provide a likelihood-based framework, and unlike VAEs, they avoid restrictive parametric assumptions about the latent space. Moreover, their iterative denoising dynamics align well with the notion of refining approximate structures toward physically plausible conformations.
+
+Recent work has demonstrated the potential of diffusion-based approaches in protein modelling and design. For example, RFdiffusion \cite{watsonNovoDesignProtein2023} introduced a powerful framework for de novo protein design, achieving unprecedented results in generating novel folds and functional structures. FoldingDiff \cite{wuProteinStructureGeneration2024} proposed a diffusion-based model that explicitly learns the folding process, while DiffDock \cite{yimDiffusionModelsProtein2024} applied diffusion models to protein-ligand docking, highlighting the versatility of the paradigm in structural biology. These developments underscore the promise of diffusion generative models in capturing the rich geometric and biophysical constraints inherent to protein structures.
+
+Applying diffusion models to proteins requires careful representation choices. 
+In this work, we consider the protein backbone as a graph where nodes correspond to C\(\alpha\) atoms and edges encode both spatial proximity and sequential adjacency. 
+This enables the use of graph neural networks (GNNs) \cite{scarselliGraphNeuralNetwork2009} as score models, incorporating geometric information through radial basis encodings, directional vectors, and positional embeddings. 
+By training such models on large structural datasets, it becomes possible to learn score functions over protein conformational space and to generate new backbone structures through reverse diffusion.
+
+\section{Structure of the Dissertation}
+\Cref{chapter:SBD} presents the theoretical foundations of score-based diffusion, the representation of protein backbones, and the model architectures explored. \Cref{chapter:Experiments} describes the experimental setup, training procedure, and evaluation metrics, and reports quantitative and qualitative results. And discusses the implications of our findings, limitations, and avenues for future research. \Cref{chapter:Conclusion} concludes the dissertation by summarising contributions and highlighting potential future directions.
+
+\chapter{Score-Based Diffusion for Generative Modelling}\label{chapter:SBD}
+\section{Background and Motivation}
+Generative modelling aims to learn a distribution from which new samples can be drawn that resemble those observed in a dataset. Classical approaches include variational autoencoders (VAEs)~\cite{kingma2022AutoEncodingVariationalBayes}, which maximise a variational lower bound on the likelihood, and generative adversarial networks (GANs)~\cite{goodfellow2020GenerativeAdversarialNetworks}, which frame generation as an adversarial game. While each of these paradigms has been successful, they also suffer from characteristic drawbacks such as blurry reconstructions (VAEs) and mode collapse (GANs).
+
+Diffusion models represent a more recent class of generative models that address many of these limitations. The central idea is deceptively simple: one defines a forward process that gradually corrupts data with noise until the signal is destroyed, and then learns a reverse process that reconstructs data from noise. By formulating the forward process as a diffusion and training a neural network to approximate the reverse dynamics, diffusion models combine the flexibility of deep networks with the probabilistic rigour of latent-variable models. 
+
+% TODO: underfull box
+In their original formulation, denoising diffusion probabilistic models (DDPMs)~\cite{hoDenoisingDiffusionProbabilistic2020} defined the forward process as a discrete-time Gaussian Markov chain. Subsequent work by Song et al.~\cite{song2020score} showed that diffusion models can be generalised to continuous-time stochastic differential equations (SDEs). In this framework, the key object is the score function, i.e.~the gradient of the log-density of the noisy distribution. Learning this score function allows one to simulate the reverse SDE and thereby generate new samples.
+
+This chapter develops the theoretical foundations of score-based diffusion models in detail. We begin with the definition of the forward diffusion process, proceed to the derivation of the reverse-time dynamics, introduce score matching as the training objective, and describe practical sampling algorithms and noise schedules. Together, these elements form the mathematical basis for applying diffusion models to protein backbone generation in later chapters.
+
+\section{Forward Diffusion Processes}
+The first component of a diffusion generative model is the forward, or noising, process. 
+This process gradually perturbs the data distribution into a tractable prior distribution, typically a standard Gaussian. The key requirement is that this transformation be both easy to sample from and analytically tractable, so that training objectives can be computed efficiently. 
+
+\subsection{Discrete-Time Formulation}
+Denoising diffusion probabilistic models (DDPMs)~\cite{hoDenoisingDiffusionProbabilistic2020} define the forward process as a Markov chain of \(T\) steps:
+\begin{align*}
+    q\left(x_{1:T}\mid x_0\right)=\prod_{t=1}^{T}q\left(x_t|x_{t-1}\right),
+\end{align*}
+where each transition adds a small amount of Gaussian noise,
+\begin{align*}
+    q\left(x_t \mid x_{t-1}\right) = \mathcal{N}\!\left(x_t ; \sqrt{1-\beta_t}\,x_{t-1}, \, \beta_t I \right).
+\end{align*}
+Here, \(\{\beta_t\}_{t=1}^T\) is a variance schedule with \(\beta_t \in (0,1)\) controlling the noise injected at each step. 
+This design ensures that after sufficiently many steps, the distribution of \(x_T\) approaches an isotropic Gaussian, i.e.~\(q(x_T) \approx \mathcal{N}(0,I)\).
+\begin{remark}
+    A key property of the Gaussian forward process is that one can sample $x_t$ at any arbitrary time step directly from the data \(x_0\):
+    \begin{align*}
+        q\left(x_t \mid x_0\right) = \mathcal{N}\!\left(x_t ; \sqrt{\bar \alpha_t}\,x_0, \,(1-\bar \alpha_t) I \right),
+    \end{align*}
+    where $\alpha_t = 1 - \beta_t$ and $\bar \alpha_t = \prod_{s=1}^t \alpha_s$. This closed form is crucial for training, as it allows drawing noisy samples \(x_t\) without explicitly simulating all intermediate steps.
+\end{remark}
+
+\subsection{Continuous-Time Formulation}
+Song et al.~\cite{song2020score} generalised the discrete diffusion process to continuous time by taking the limit as \(T \to \infty\) and \(\beta_t \to 0\). In this setting, the forward process can be expressed as a stochastic differential equation (SDE) of the form
+\begin{align}\label{eq:forward_sde}
+    dx = f(x,t)\,dt + g(t)\,dW_t,
+\end{align}
+where \(W_t\) is the Brownian motion, \(f(x,t)\) is a drift term, and \(g(t)\) controls the diffusion magnitude. Different choices of \(f\) and \(g\) yield different diffusion processes,
+\begin{itemize}
+    \item \textbf{Variance-preserving (VP) SDE}: maintains the marginal variance of $x_t$ at one throughout the process.  
+    \item \textbf{Variance-exploding (VE) SDE}: variance grows unbounded as $t \to T$, pushing the distribution to white noise.  
+    \item \textbf{Sub-variance-preserving (sub-VP) SDE}: an interpolation between VP and VE.  
+\end{itemize}
+\subsection{VP SDE}
+%TODO
+Use Variance Preserving (VP) SDE \cite{song2020score}
+\begin{align}\label{eq:VPSDE}
+    dx = -\frac{1}{2}\beta(t)\,x\,dt + \sqrt{\beta(t)}\,dW_t,
+\end{align}
+where $\beta(t)$ is a noise schedule (e.g.~linear, cosine), with closed form posterior
+\begin{align*}
+    p\left(x_t|x_0\right)=\mathcal{N}\left(x_t:\:x_0e^{-\frac{1}{2}\int_0^t\beta(s)ds},\left(1-e^{-\int_0^t\beta(s)ds}\right)I\right)
+\end{align*}
+for data perturbation, i.e.,
+\begin{align}\label{eq:perturbation_ddpm}
+    x_t=\sqrt{e^{-\int_0^t\beta(s)ds}}x_0+\sqrt{1-e^{-\int_0^t\beta(s)ds}}z_t,\quad z_t\sim\mathcal{N}\left(0, I\right).
+\end{align}
+Notice that \cref{eq:perturbation_ddpm} is exactly the discrete perturbation scheme in DDPM \cite{hoDenoisingDiffusionProbabilistic2020}.
+
+This continuous formulation provides a flexible mathematical foundation that unifies discrete DDPMs with stochastic differential equations, and it allows the use of stochastic calculus tools to analyse and manipulate diffusion models. 
+In particular, it enables the derivation of the reverse-time SDE, which defines the generative process and will be introduced in the next section.
+
+\section{Reverse-Time SDE}
+The forward diffusion process, whether in discrete or continuous form, progressively perturbs data until its distribution approaches a simple prior such as an isotropic Gaussian. 
+To perform generative modelling, we require a process that inverts this corruption: starting from noise and evolving back toward the data distribution. 
+This is formalised through the theory of time-reversal for diffusion processes.
+\subsection{Discrete-Time Reverse Process}
+In the discrete DDPM formulation~\cite{hoDenoisingDiffusionProbabilistic2020}, the generative model is defined as a reverse Markov chain
+\begin{align*}
+    p_\theta\left(x_{0:T}\right) = p(x_T) \prod_{t=1}^{T} p_\theta(x_{t-1} \mid x_t),
+\end{align*}
+with $p(x_T) = \mathcal{N}(x_T;0,I)$ as the prior. 
+The reverse conditionals are modelled as Gaussians
+\begin{align*}
+    p_\theta\left(x_{t-1} \mid x_t\right) = \mathcal{N}\!\big(x_{t-1}; \mu_\theta(x_t,t), \Sigma_\theta(x_t,t)\big),
+\end{align*}
+where $\mu_\theta$ and $\Sigma_\theta$ are learned using a neural network. 
+% Training then consists of minimising the Kullback-Leibler divergence between the true posterior $q(x_{t-1} \mid x_t, x_0)$ and the model distribution $p_\theta(x_{t-1} \mid x_t)$. This can be shown to reduce to a simple denoising score matching objective, where the network predicts the noise that was added at each step.
+
+\subsection{Continuous-Time Reverse SDE}
+In the continuous-time setting, Anderson~\cite{andersonReversetimeDiffusionEquation1982} established that the time reversal of an It\^{o} SDE \eqref{eq:forward_sde}
+is itself an SDE with modified drift:
+\begin{align}\label{eq:reverse_sde}
+    dx = \left[f(x,t) - g(t)^2 \nabla_x \log p_t(x)\right]\,dt + g(t)\,d\bar W_t,
+\end{align}
+where \(\bar W_t\) is the Brownian motion running backward in time. This equation defines the reverse-time SDE. It depends explicitly on the score function \(\nabla_x \log p_t(x)\) of the forward process marginal distribution \(p_t(x)\). Thus, if one can estimate the score function accurately for all times \(t\), it becomes possible to simulate the reverse SDE and generate samples from the data distribution.
+
+\subsection{Implications for Generative Modelling}
+This result provides the key insight underlying score-based diffusion: generative modelling reduces to score estimation. 
+Rather than directly modelling likelihoods or sampling distributions, we train a neural network \(s_\theta(x,t)\) to approximate the score \(\nabla_x \log p_t(x)\). The network is then used to guide the drift of the reverse SDE, producing realistic samples when integrated from Gaussian noise at \(t = T\) back to \(t = 0\).
+
+\section{Score Matching and Training Objective}
+The reverse-time SDE depends on the score function \(\nabla_x \log p_t(x)\), which is generally intractable. Thus, the central learning problem in score-based diffusion is to approximate this score with a neural network \(s_\theta(x,t)\). Training requires a loss function that encourages \(s_\theta\) to match the true score across noise levels.
+
+\subsection{Denoising Score Matching}
+For each time \(t\), the score function of \(x_t\) can be trained via
+\begin{align*}
+    \mathbb{E}_{p\left(x_t\right)}\left[\norm{\nabla_{x_t}\log p\left(x_t\right)-s_{\theta}\left(x_t, t\right)}_2^2\right].
+\end{align*}
+The unknown term \(\nabla_{x_t}\log p\left(x_t\right)\) (true score) can be eliminated with the score matching objective \cite{hyvarinenEstimationNonNormalizedStatistical2005}
+\begin{align*}
+    J^{\text{SM}}_t(\theta)=\mathbb{E}_{p\left(x_t\right)}\left[\norm{\tr\left(\nabla_{x_t}s_{\theta}\left(x_t,t\right)\right)-\frac{1}{2}\norm{s_{\theta}(x_t,t)}_2^2}_2^2\right].
+\end{align*}
+Hyv\"arinen~\cite{hyvarinenEstimationNonNormalizedStatistical2005} introduced score matching as a method to estimate unnormalised density models. 
+Directly minimising the Fisher divergence between the model score and the data score avoids the need to compute the partition function. However, applying this to diffusion models requires extending the idea to noisy samples.
+
+Note that the term \(\tr\left(\nabla_{x_t}s_{\theta}\left(x_t,t\right)\right)\) can be computationally intensive, since we have the analytic form of the posterior, this can be eased by using instead the denoising score matching objective \cite{vincentConnectionScoreMatching2011}
+\begin{align*}
+    J^{\text{DSM}}_t=\mathbb{E}_{p\left(x_0\right)}\mathbb{E}_{p\left(x_t|x_0\right)}\left[\norm{s_{\theta}\left(x_t,t\right)-\nabla_{x_t}\log p\left(x_t|x_0\right)}_2^2\right].
+\end{align*}
+Vincent~\cite{vincentConnectionScoreMatching2011} showed that training a denoising autoencoder to reconstruct clean data from corrupted observations is equivalent to score matching under certain conditions. This connection underpins the training of diffusion models: the neural network is trained to denoise \(x_t\) into \(x_0\), thereby learning the score function implicitly.
+
+\subsection{Objective in Continuous-Time Diffusion}%TODO: NCSN, TDSN
+The overall objective is given by a weighted sum (or average)
+\begin{align*}
+    J^{\text{DSM}}=\mathbb{E}_{t\sim\mathcal{U}(0,1)}\left[\lambda\left(t\right)J^{\text{DSM}}_t\right].
+\end{align*}
+
+Song et al.~\cite{song2020score} formulated the training objective for continuous SDEs as a weighted denoising score matching loss:
+\begin{align*}
+    \mathcal{L}(\theta) = \mathbb{E}_{t \sim \mathcal{U}(0,1)} \, \mathbb{E}_{x_0 \sim p_{\text{data}}} \, \mathbb{E}_{x_t \sim q(x_t \mid x_0)} \Big[ \lambda(t) \, \| s_\theta(x_t, t) - \nabla_x \log q(x_t \mid x_0) \|^2 \Big],
+\end{align*}
+where \(q(x_t \mid x_0)\) denotes the forward diffusion distribution, and $\lambda(t)$ is a time-dependent weighting function. The target score \(\nabla_x \log q(x_t \mid x_0)\) has a closed form under the Gaussian forward process, enabling efficient training. 
+
+\subsection{Summary}
+The learning problem for score-based diffusion therefore reduces to denoising score matching: the neural network $s_\theta(x,t)$ is trained to approximate $\nabla_x \log p_t(x)$ across different noise levels. Once trained, this network can be used to drive the reverse SDE, enabling generation of new samples from Gaussian noise.
+
+\section{Sampling Procedures}
+Once the score network \(s_\theta(x,t)\) has been trained, new samples can be generated by simulating the reverse diffusion process. This requires integrating the reverse-time SDE \eqref{eq:reverse_sde} starting from Gaussian noise \(x(T) \sim \mathcal{N}(0,I)\) and evolving toward \(t=0\).
+
+\subsection{Reverse SDE Sampling}
+The simplest approach is to discretise the reverse SDE using the Euler-Maruyama method. 
+For a decreasing sequence of time steps \(\{t_i\}_{i=0}^N\) with \(t_N = T\) and \(t_0 = 0\), the update rule is
+\begin{align*}
+    x_{t_{i-1}} = x_{t_i} + \left[f(x_{t_i},t_i) - g(t_i)^2 s_\theta(x_{t_i},t_i)\right]\Delta t + g(t_i)\sqrt{\Delta t}\,z_i,
+\end{align*}
+where $z_i \sim \mathcal{N}(0,I)$ and $\Delta t = t_{i-1} - t_i$. 
+This procedure generates approximate samples from the data distribution. 
+While straightforward, its quality depends heavily on the number of discretisation steps: smaller steps yield higher fidelity at the cost of computational time.
+
+\subsection{Predictor-Corrector Sampling}
+The Predictor-Corrector sampler was proposed by \cite{song2020score} as an improved sampling method. It is based on combining two components:
+\begin{enumerate}
+  \item \textbf{Predictor step:} one update using the reverse SDE (as above), advancing the trajectory toward lower noise levels.  
+  \item \textbf{Corrector step:} one or more steps of stochastic refinement, implemented as Langevin dynamics:
+    \begin{align*}
+        x \leftarrow x + \alpha\, s_\theta(x,t) + \sqrt{2\alpha}\,z, \quad z \sim \mathcal{N}(0,I),
+    \end{align*}
+    where $\alpha$ is a step size. This step locally improves sample quality by pushing the state toward regions of higher density according to the score network.
+\end{enumerate}
+By alternating predictor and corrector steps, the algorithm achieves a better trade-off between quality and efficiency than pure reverse SDE sampling. 
+In practice, only a few corrector iterations per time step are needed to significantly improve sample fidelity.
+
+\subsection*{Summary}
+
+Sampling in score-based diffusion models is performed by simulating the reverse SDE, either directly or with predictor-corrector refinements. Both methods start from Gaussian noise and progressively refine the signal into a clean sample, guided by the score network. In this dissertation, we adopt the variance-preserving (VP) SDE with a cosine noise schedule and use predictor-corrector sampling as our default procedure.
+
+\section{Noise Schedules}
+The design of the noise schedule plays a central role in the performance of score-based diffusion models. 
+The schedule determines how the variance of the forward diffusion process evolves over time, which directly influences both training stability and the quality of generated samples.
+
+\subsection*{Linear Schedules}
+
+In the original DDPM formulation~\cite{hoDenoisingDiffusionProbabilistic2020}, the variance schedule $\{\beta_t\}_{t=1}^T$ was chosen to increase linearly from a small value to a larger one over $T$ steps. 
+Equivalently, in the continuous SDE formulation, this corresponds to a linear growth of the noise rate $\beta(t)$. 
+While simple, this schedule can be suboptimal: early time steps may inject too little noise (leading to poor coverage of high-noise regions during training), while later steps may over-noise the data (resulting in wasted computation). 
+
+\subsection*{Cosine Variance-Preserving Schedule}
+Nichol and Dhariwal~\cite{nicholImprovedDenoisingDiffusion2021} proposed a cosine schedule for the variance-preserving (VP) SDE, which has since become widely adopted. 
+Instead of linear growth, the cosine schedule ensures a smoother increase in noise variance, matching the cumulative signal-to-noise ratio (SNR) to a cosine function:
+\begin{align*}
+    \bar \alpha(t) = \frac{\cos^2\!\left(\frac{\pi}{2}(\frac{t+s}{1+s})\right)}{\cos^2\!\left(\frac{\pi}{2}\frac{s}{1+s}\right)},
+\end{align*}
+where $\bar \alpha(t)$ is the cumulative product of noise attenuation coefficients, $T$ is the diffusion horizon, and $s$ is a small offset (typically $10^{-4}$) to prevent singularities. 
+This schedule maintains higher signal levels for longer, enabling the score network to learn more effectively across a wider range of noise intensities.
+\begin{remark}
+    \begin{align*}
+        x_t=\sqrt{\alpha_t}x_0+\sqrt{1-\alpha_t}z_t,\quad\alpha_t=\cos^2\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right),\quad z_t\sim\mathcal{N}\left(0, I\right).
+    \end{align*}
+    This is a DDPM perturbation scheme, the corresponding SDE is given by solving
+    \begin{align*}
+        \alpha_t=\cos^2\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right)=e^{-\int_0^t\beta(s)ds},
+    \end{align*}
+    it follows that
+    \begin{align*}
+        \beta(t)
+        &=-\frac{d}{dt}\log\cos^2\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right)\\
+        &=-\frac{1}{\cos^2\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right)}\left[2\cos\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right)\right]\left[-\sin\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right)\right]\frac{d}{dt}\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right)\\
+        &=\frac{\pi}{1+s}\tan\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right).
+    \end{align*}
+\end{remark}
+Empirically, the cosine VP schedule improves sample quality and accelerates convergence compared to linear schedules. It balances the trade-off between injecting sufficient noise for diversity and preserving enough signal for stable training. Moreover, because it avoids excessively noisy late stages, fewer discretisation steps are needed during sampling, reducing computational cost.
+
+\subsection*{Choice in This Work}
+In this dissertation, we adopt the cosine VP schedule as the forward diffusion process. This choice is motivated by its demonstrated effectiveness in image and structural generative tasks, and by its compatibility with the variance-preserving SDE formulation used in our score model. All experiments in later chapters therefore use the cosine VP schedule as the default setting.
+
+\section{Summary}
+This chapter has established the theoretical foundations of score-based diffusion models, which form the core generative framework employed in this dissertation. We began by introducing the forward diffusion process, first in its discrete DDPM formulation and then in its continuous-time generalisation as a stochastic differential equation. We then derived the reverse-time SDE, showing that generative modelling reduces to the problem of score estimation. This led naturally to the denoising score matching objective, which enables training a neural network to approximate the score function across all noise levels. Finally, we discussed practical sampling algorithms, including reverse SDE integration and predictor-corrector methods, and examined the role of noise schedules, with particular emphasis on the cosine variance-preserving schedule adopted in this work.
+
+Together, these elements provide a principled probabilistic framework for deep generative modelling. Unlike GANs or VAEs, score-based diffusion models avoid common issues such as mode collapse or restrictive latent assumptions, while offering strong theoretical guarantees and flexible sampling procedures. The remainder of this dissertation builds upon these foundations to adapt score-based diffusion to the setting of protein backbone generation, where structural constraints and geometric representations introduce unique modelling challenges.
+
+\chapter{Experiments}\label{chapter:Experiments}
 \section{Data}
 CATH S40 domain structures, it contains non-redundant data with no pair of domains with \(\geq 40\%\) sequence similarity (according to BLAST).
 
@@ -70,8 +297,6 @@ Extract the \(C\alpha\) (alpha carbon) atoms for each protein domain in the data
 where \(l\) the number of \(C\alpha\) atoms (residues) is varying for different domain.
 \section{Model Architecture}
 \subsection{Message Passing Layers}
-\subsubsection{E3NN}
-Euclidean neural networks \cite{thomasTensorFieldNetworks2018,weiler3DSteerableCNNs2018,kondorClebschGordanNetsFully2018} is rotation and translation invariant for 3D point cloud, and all its operations are per-node, or per-edge based, so it is compatible with variable-sized structures.
 \subsubsection{Graph Neural Networks}
 Graph Neural Networks (GNNs) were first introduced in the seminal work by \cite{scarselliGraphNeuralNetwork2009}, which proposed a recursive framework for learning over graphs. The field progressed significantly with the development of Graph Convolutional Networks (GCNs) by \cite{kipfSemiSupervisedClassificationGraph2017}, which introduced a scalable and differentiable message-passing scheme. Further, Graph Attention Networks \cite{velickovicGraphAttentionNetworks2018}, brought in attention mechanisms to improve expressiveness and performance. To better model the complicated structure, I use the graph transformer network \cite{shiMaskedLabelPrediction2021} which incorporates multi-head self-attention over local neighborhoods.
 \subsection{Time Conditioning via Gaussian Fourier Features}
@@ -88,170 +313,9 @@ Graph-based models are inherently invariant to node permutations, which can be a
 where \(w_k\)'s are fixed frequencies. The resulting positional embedding is then passed through a learnable transformation, such as a multilayer perceptron (MLP), before being incorporated into the model
 \subsection{Residual Network Architecture}
 Overall residual connections are used at each GNN layer.
-\section{Score-Based Diffusion Models}
-\subsection{Forward Process}
-Use Variance Preserving (VP) SDE \cite{song2020score}
-\begin{align}\label{eq:VPSDE}
-    dx=-\frac{1}{2}\beta(t)x+\sqrt{\beta(t)}dw
-\end{align}
-with closed form posterior
-\begin{align*}
-    p\left(x_t|x_0\right)=\mathcal{N}\left(x_t:\:x_0e^{-\frac{1}{2}\int_0^t\beta(s)ds},\left(1-e^{-\int_0^t\beta(s)ds}\right)I\right)
-\end{align*}
-for data perturbation, i.e.,
-\begin{align}\label{eq:perturbation_ddpm}
-    x_t=\sqrt{e^{-\int_0^t\beta(s)ds}}x_0+\sqrt{1-e^{-\int_0^t\beta(s)ds}}z_t,\quad z_t\sim\mathcal{N}\left(0, I\right).
-\end{align}
-Notice that \cref{eq:perturbation_ddpm} is exactly the discrete perturbation scheme in DDPM \cite{ho2020denoising}. In practice, linear \(\beta(t)\) as used in \cite{song2020score} perturb the backbone too fast, the perturbed samples are nearly random noise after a small time \(t\). To slow down perturbation, I used a cosine noise schedule as proposed in \cite{nicholImprovedDenoisingDiffusion2021}, where
-\begin{align*}
-    x_t=\sqrt{\alpha_t}x_0+\sqrt{1-\alpha_t}z_t,\quad\alpha_t=\cos^2\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right),\quad z_t\sim\mathcal{N}\left(0, I\right).
-\end{align*}
-This is a DDPM perturbation scheme, the corresponding SDE is given by solving
-\begin{align*}
-    \alpha_t=\cos^2\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right)=e^{-\int_0^t\beta(s)ds},
-\end{align*}
-it follows that
-\begin{align*}
-    \beta(t)
-    &=-\frac{d}{dt}\log\cos^2\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right)\\
-    &=-\frac{1}{\cos^2\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right)}\left[2\cos\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right)\right]\left[-\sin\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right)\right]\frac{d}{dt}\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right)\\
-    &=\frac{\pi}{1+s}\tan\left(\frac{t+s}{1+s}\cdot\frac{\pi}{2}\right).
-\end{align*}
-\subsection{Denoising Score Matching}
-Ideally, for each time \(t\), the score function of \(x_t\) can be trained via
-\begin{align*}
-    \mathbb{E}_{p\left(x_t\right)}\left[\norm{\nabla_{x_t}\log p\left(x_t\right)-s_{\theta}\left(x_t, t\right)}_2^2\right].
-\end{align*}
-The unknown term \(\nabla_{x_t}\log p\left(x_t\right)\) (true score) can be eliminated with the score matching objective \cite{hyvarinenEstimationNonNormalizedStatistical2005}
-\begin{align*}
-    J^{\text{SM}}_t(\theta)=\mathbb{E}_{p\left(x_t\right)}\left[\norm{\tr\left(\nabla_{x_t}s_{\theta}\left(x_t,t\right)\right)-\frac{1}{2}\norm{s_{\theta}(x_t,t)}_2^2}_2^2\right].
-\end{align*}
-Note that the term \(\tr\left(\nabla_{x_t}s_{\theta}\left(x_t,t\right)\right)\) can be computationally intensive, since we have the analytic form of the posterior, this can be eased by using instead the denoising score matching objective \cite{vincentConnectionScoreMatching2011}
-\begin{align*}
-    J^{\text{DSM}}_t=\mathbb{E}_{p\left(x_0\right)}\mathbb{E}_{p\left(x_t|x_0\right)}\left[\norm{s_{\theta}\left(x_t,t\right)-\nabla_{x_t}\log p\left(x_t|x_0\right)}_2^2\right].
-\end{align*}
-The overall objective is given by a weighted sum (or average)
-\begin{align*}
-    J^{\text{DSM}}=\mathbb{E}_{t\sim\mathcal{U}(0,1)}\left[\lambda\left(t\right)J^{\text{DSM}}_t\right].
-\end{align*}
-\subsection{Reverse Process}
-For an SDE
-\begin{align*}
-    dx=f(x,t)dt+g(t)dw,
-\end{align*}
-the reverse time SDE is given by \cite{andersonReversetimeDiffusionEquation1982}
-\begin{align*}
-    dx=\left[f(x,t)-g^2(t)\nabla_{x}\log p\left(x_t\right)\right]dt+g\left(t\right)d\tilde{w},
-\end{align*}
-where \(t\) goes from \(1\) to \(0\). So for VPSDE \eqref{eq:VPSDE} its reverse process is
-\begin{align*}
-    dx=\left[-\frac{1}{2}\beta(t)-\beta^2(t)\nabla_{x}\log p\left(x_t\right)\right]dt+\sqrt{\beta(t)}d\tilde{w},
-\end{align*}
-and the true score is approximated by the trained neural network \(s_{\theta}\). For discretisation the Predictor-Corrector (PC) sampler \cite{song2020score} is used, i.e., the predictor step steps into next time step in the reverse SDE
-\begin{align*}
-    x_{k+1}\gets x_k+\left[f(x,t)-g^2(t)s_\theta\left(x_k, t\right)\right]\left(-\delta t\right)+g\left(t\right)\sqrt{\delta t}z_{k+1},
-\end{align*}
-and the corrector step corrects the sampling using MCMC method in a fixed time \(t\)
-\begin{align*}
-    x_{k+1}\gets x_{k+1}+\epsilon_{k+1}s_{\theta}\left(x_{k+1},t\right)+\sqrt{2}z_{k+1}',
-\end{align*}
-for white noises \(z_{k+1}\) and \(z_{k+1}'\).
-\section{Reimannian Score-Based Diffusion Models}
-The constraints I use are
-\begin{enumerate}
-    \item fixed bond lengths (\(C\alpha\)-\(C\alpha\) distances),
-        \begin{align*}
-            \norm{x_{i+1}-x_{i}}=\text{const};
-        \end{align*}
-    \item fixed bond angles,
-        \begin{align*}
-            \angle\left(x_{i-1},x_{i},x_{i+1}\right)=\text{const};
-        \end{align*}
-    \item ....
-\end{enumerate}
-Suppose, for an \(x\in\mathbb{R}^{l \times 3}\) on the manifold, its constraints are expressed as
-\begin{align*}
-    h_i(x)=0,\quad i=1,...,m,
-\end{align*}
-the Jacobian matrix of the constraints is given by
-\begin{align*}
-    J(x)=\begin{bmatrix}
-        \nabla_{x}^T h_1\left(x\right)\\
-        \nabla_{x}^T h_2\left(x\right)\\
-        \vdots\\
-        \nabla_{x}^T h_m\left(x\right)
-    \end{bmatrix}\in\mathbb{R}^{m\times3l}.
-\end{align*}
-Since now we have no closed form solution to the SDE, a discretisation rule is need to perturb the data.
-\subsection{Geodesic Random Walk}
-The projector of the tangent space of \(x\) is given by
-\begin{align*}
-    \Pi(x)=I-J^T(x)(J(x)J^T(x))^{-1}J(x),
-\end{align*}
-so the SDE on manifold is given by
-\begin{align}\label{eq:constrained-sde-tangent-space}
-    dx = \Pi(x)f(x,t)dt+\Pi(x)g(t)dw.
-\end{align}
-To sample from it, we follows the geodesic random walk in \cite{de2022riemannian}. At time \(t\), first sample on tangent space of \(x_t\)
-\begin{align*}
-    v_{k+1}=\Pi\left(x_t\right)\left(f(x_t,t)\delta t+g(t)\sqrt{\delta t}z_{k+1}\right),
-\end{align*}
-then move along the geodesic on manifold \(\mathcal{M}\) defined by the constraints, i.e.,
-\begin{align*}
-    x_{k+1}\gets\exp_{x_k}\left(v_{k+1}\right).
-\end{align*}
-The exponential map \(\exp_{x}\left(v\right)\) is known for sphere and torus in \cite{de2022riemannian}, however, for manifold defined by our constraints, it is unkonwn. It can be approximated by the solution of the optimisation problem
-\begin{align*}
-    \widehat{\exp_x\left(v\right)}=\argmin_{x'}\frac{1}{2}\norm{x'-(x+v)}^2\quad \text{subject to}\quad h(x')=0.
-\end{align*}
-Reformulate to obtain
-\begin{align*}
-    \argmin_{\delta x}\frac{1}{2}\norm{x+\delta x-(x+v)}^2\quad \text{subject to}\quad h(x+\delta x)=0.
-\end{align*}
-Expand the constraint and only keep the first order terms \(h(x+\delta x)=h(x)+J(x)\delta x\), and Lagrangian is
-\begin{align*}
-    \mathcal{L}\left(\delta x,\lambda\right)=\frac{1}{2}\norm{\delta x - v}^2+\lambda^T\left(h(x)+J(x)\delta x\right).
-\end{align*}
-Now we can solve with KKT conditions as the problem is convex, i.e.,
-\begin{align*}
-    \nabla_{\delta x}\mathcal{L}\left(\delta x,\lambda\right)&=0\\
-    h(x)+J(x)\delta x&=0
-\end{align*}
-This yields the optimal update
-\begin{align*}
-    \delta x=v-J^T\left(x\right)\lambda
-\end{align*}
-where \(\lambda\) solves
-\begin{align*}
-    J(x)J^T(x)\lambda=h(x)+J(x)v=J(x)v.\tag{\text{since we start on manifold.}}
-\end{align*}
-In the end the exponential map is
-\begin{align*}
-    \widehat{\exp_x\left(v\right)}=x+\delta x.
-\end{align*}
-\subsection{Constrained Symplectic Euler-Like Method}
-This is an alternative to geodesic random walk that avoid approximating the exponential map. Instead of trying to sample from \eqref{eq:constrained-sde-tangent-space}, we use the equivalent
-\begin{align*}
-    dx&=f(x,t)dt+g(t)dw-J^T(x)\lambda(t)dt,\\
-    h(x)&=0.
-\end{align*}
-We use the constrained Symplectic Euler-like method \cite{leimkuhlerMolecularDynamicsDeterministic2015}
-\begin{align*}
-    x_{k+1}=x_k+f(x_k,t_k)\delta t+g(t_k)\sqrt{\delta t}z_{k+1}-J^T(x_k)\lambda_k\delta t
-\end{align*}
-where \(\lambda_k\) is solved by the constraints
-\begin{align*}
-    h\left(x_{k+1}\right)=h\left(x_k+f(x_k,t_k)\delta t+g(t_k)\sqrt{\delta t}z_{k+1}-J^T(x_k)\lambda_k\delta t\right)=0.
-\end{align*}
-Let \(Q_k=x_k+f(x_k,t_k)\delta t+g(t_k)\sqrt{\delta t}z_{k+1}\) and \(\Lambda_k=\lambda_t\delta t\) we have
-\begin{align*}
-    h\left(Q_k+J^T(x_k)\Lambda_k\right)=0,
-\end{align*}
-which can be solved by Gauss-Newton iteration
-\begin{align*}
-    Q^{\ell}&\coloneq Q_k-J^T\left(x_k\right)\Lambda^{\ell}\\
-    \Lambda_k^{\ell+1}&=\Lambda_k^{\ell}+\left[J\left(Q^{\ell}\right)J^T(x_k)\right]^{-1}h\left(Q^{\ell}\right).
-\end{align*}
+
+\chapter{Conclusion}\label{chapter:Conclusion}
+
 
 \bibliographystyle{apalike}
 \bibliography{references}

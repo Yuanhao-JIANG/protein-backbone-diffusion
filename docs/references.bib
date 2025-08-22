@@ -1,38 +1,15 @@
-@article{busoniu2008comprehensive,
-  title={A comprehensive survey of multiagent reinforcement learning},
-  author={Busoniu, Lucian and Babuska, Robert and De Schutter, Bart},
-  journal={IEEE Transactions on Systems, Man, and Cybernetics, Part C (Applications and Reviews)},
-  volume={38},
-  number={2},
-  pages={156--172},
-  year={2008},
-  publisher={IEEE}
+@inproceedings{hoDenoisingDiffusionProbabilistic2020,
+  title = {Denoising {{Diffusion Probabilistic Models}}},
+  booktitle = {Advances in {{Neural Information Processing Systems}}},
+  author = {Ho, Jonathan and Jain, Ajay and Abbeel, Pieter},
+  year = {2020},
+  volume = {33},
+  pages = {6840--6851},
+  publisher = {Curran Associates, Inc.},
+  urldate = {2025-08-22},
+  abstract = {We present high quality image synthesis results using diffusion probabilistic models, a class of latent variable models inspired by considerations from nonequilibrium thermodynamics. Our best results are obtained by training on a weighted variational bound designed according to a novel connection between diffusion probabilistic models and denoising score matching with Langevin dynamics, and our models naturally admit a progressive lossy decompression scheme that can be interpreted as a generalization of autoregressive decoding. On the unconditional CIFAR10 dataset, we obtain an Inception score of 9.46 and a state-of-the-art FID score of 3.17. On 256x256 LSUN, we obtain sample quality similar to ProgressiveGAN.}
 }
 
-@article{zhang2021multi,
-  title={Multi-agent reinforcement learning: A selective overview of theories and algorithms},
-  author={Zhang, Kaiqing and Yang, Zhuoran and Ba{\c{s}}ar, Tamer},
-  journal={Handbook of reinforcement learning and control},
-  pages={321--384},
-  year={2021},
-  publisher={Springer}
-}
-
-@inproceedings{pathak2017curiosity,
-  title={Curiosity-driven exploration by self-supervised prediction},
-  author={Pathak, Deepak and Agrawal, Pulkit and Efros, Alexei A and Darrell, Trevor},
-  booktitle={International conference on machine learning},
-  pages={2778--2787},
-  year={2017},
-  organization={PMLR}
-}
-
-@article{burda2018exploration,
-  title={Exploration by random network distillation},
-  author={Burda, Yuri and Edwards, Harrison and Storkey, Amos and Klimov, Oleg},
-  journal={arXiv preprint arXiv:1810.12894},
-  year={2018}
-}
 
 @article{song2020score,
   title={Score-based generative modeling through stochastic differential equations},
@@ -53,74 +30,132 @@
   abstract = {We show that passing input points through a simple Fourier feature mapping enables a multilayer perceptron (MLP) to learn high-frequency functions in low-dimensional problem domains. These results shed light on recent advances in computer vision and graphics that achieve state-of-the-art results by using MLPs to represent complex 3D objects and scenes. Using tools from the neural tangent kernel (NTK) literature, we show that a standard MLP has impractically slow convergence to high frequency signal components. To overcome this spectral bias, we use a Fourier feature mapping to transform the effective NTK into a stationary kernel with a tunable bandwidth. We suggest an approach for selecting problem-specific Fourier features that greatly improves the performance of MLPs for low-dimensional regression tasks relevant to the computer vision and graphics communities.}
 }
 
-@article{song2021maximum,
-  title={Maximum likelihood training of score-based diffusion models},
-  author={Song, Yang and Durkan, Conor and Murray, Iain and Ermon, Stefano},
-  journal={Advances in neural information processing systems},
-  volume={34},
-  pages={1415--1428},
-  year={2021}
+@inproceedings{songMaximumLikelihoodTraining2021,
+  title = {Maximum {{Likelihood Training}} of {{Score-Based Diffusion Models}}},
+  booktitle = {Advances in {{Neural Information Processing Systems}}},
+  author = {Song, Yang and Durkan, Conor and Murray, Iain and Ermon, Stefano},
+  year = {2021},
+  volume = {34},
+  pages = {1415--1428},
+  publisher = {Curran Associates, Inc.},
+  urldate = {2025-08-22}
 }
 
-@article{alonso2024diffusion,
-  title={Diffusion for World Modeling: Visual Details Matter in Atari},
-  author={Alonso, Eloi and Jelley, Adam and Micheli, Vincent and Kanervisto, Anssi and Storkey, Amos and Pearce, Tim and Fleuret, Fran{\c{c}}ois},
-  journal={arXiv preprint arXiv:2405.12399},
-  year={2024}
+@misc{kingma2022AutoEncodingVariationalBayes,
+  title = {Auto-{{Encoding Variational Bayes}}},
+  author = {Kingma, Diederik P. and Welling, Max},
+  year = {2022},
+  month = dec,
+  number = {arXiv:1312.6114},
+  eprint = {1312.6114},
+  primaryclass = {stat},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.1312.6114},
+  urldate = {2025-08-22},
+  abstract = {How can we perform efficient inference and learning in directed probabilistic models, in the presence of continuous latent variables with intractable posterior distributions, and large datasets? We introduce a stochastic variational inference and learning algorithm that scales to large datasets and, under some mild differentiability conditions, even works in the intractable case. Our contributions are two-fold. First, we show that a reparameterization of the variational lower bound yields a lower bound estimator that can be straightforwardly optimized using standard stochastic gradient methods. Second, we show that for i.i.d. datasets with continuous latent variables per datapoint, posterior inference can be made especially efficient by fitting an approximate inference model (also called a recognition model) to the intractable posterior using the proposed lower bound estimator. Theoretical advantages are reflected in experimental results.},
+  archiveprefix = {arXiv},
+  langid = {english},
+  keywords = {Computer Science - Machine Learning,Statistics - Machine Learning}
 }
 
-@article{papoudakis2020comparative,
-  title={Comparative evaluation of cooperative multi-agent deep reinforcement learning algorithms},
-  author={Papoudakis, Georgios and Christianos, Filippos and Sch{\"a}fer, Lukas and Albrecht, Stefano V},
-  journal={arXiv preprint arXiv:2006.07869},
-  year={2020}
+@article{goodfellow2020GenerativeAdversarialNetworks,
+  title = {Generative Adversarial Networks},
+  author = {Goodfellow, Ian and {Pouget-Abadie}, Jean and Mirza, Mehdi and Xu, Bing and {Warde-Farley}, David and Ozair, Sherjil and Courville, Aaron and Bengio, Yoshua},
+  year = {2020},
+  month = oct,
+  journal = {Commun. ACM},
+  volume = {63},
+  number = {11},
+  pages = {139--144},
+  issn = {0001-0782},
+  doi = {10.1145/3422622},
+  urldate = {2025-08-22},
+  abstract = {Generative adversarial networks are a kind of artificial intelligence algorithm designed to solve the generative modeling problem. The goal of a generative model is to study a collection of training examples and learn the probability distribution that generated them. Generative Adversarial Networks (GANs) are then able to generate more examples from the estimated probability distribution. Generative models based on deep learning are common, but GANs are among the most successful generative models (especially in terms of their ability to generate realistic high-resolution images). GANs have been successfully applied to a wide variety of tasks (mostly in research settings) but continue to present unique challenges and research opportunities because they are based on game theory while most other approaches to generative modeling are based on optimization.}
 }
 
-@article{ha2018world,
-  title={World models},
-  author={Ha, David and Schmidhuber, J{\"u}rgen},
-  journal={arXiv preprint arXiv:1803.10122},
-  year={2018}
+@inproceedings{dhariwal2021DiffusionModelsBeat,
+  title = {Diffusion {{Models Beat GANs}} on {{Image Synthesis}}},
+  booktitle = {Advances in {{Neural Information Processing Systems}}},
+  author = {Dhariwal, Prafulla and Nichol, Alexander},
+  year = {2021},
+  volume = {34},
+  pages = {8780--8794},
+  publisher = {Curran Associates, Inc.},
+  urldate = {2025-08-22}
 }
 
-@inproceedings{hafner2019learning,
-  title={Learning latent dynamics for planning from pixels},
-  author={Hafner, Danijar and Lillicrap, Timothy and Fischer, Ian and Villegas, Ruben and Ha, David and Lee, Honglak and Davidson, James},
-  booktitle={International conference on machine learning},
-  pages={2555--2565},
-  year={2019},
-  organization={PMLR}
+@article{jumper2021HighlyAccurateProtein,
+  title = {Highly Accurate Protein Structure Prediction with {{AlphaFold}}},
+  author = {Jumper, John and Evans, Richard and Pritzel, Alexander and Green, Tim and Figurnov, Michael and Ronneberger, Olaf and Tunyasuvunakool, Kathryn and Bates, Russ and {\v Z}{\'i}dek, Augustin and Potapenko, Anna and Bridgland, Alex and Meyer, Clemens and Kohl, Simon A. A. and Ballard, Andrew J. and Cowie, Andrew and {Romera-Paredes}, Bernardino and Nikolov, Stanislav and Jain, Rishub and Adler, Jonas and Back, Trevor and Petersen, Stig and Reiman, David and Clancy, Ellen and Zielinski, Michal and Steinegger, Martin and Pacholska, Michalina and Berghammer, Tamas and Bodenstein, Sebastian and Silver, David and Vinyals, Oriol and Senior, Andrew W. and Kavukcuoglu, Koray and Kohli, Pushmeet and Hassabis, Demis},
+  year = {2021},
+  month = aug,
+  journal = {Nature},
+  volume = {596},
+  number = {7873},
+  pages = {583--589},
+  publisher = {Nature Publishing Group},
+  issn = {1476-4687},
+  doi = {10.1038/s41586-021-03819-2},
+  urldate = {2025-08-22},
+  abstract = {Proteins are essential to life, and understanding their structure can facilitate a mechanistic understanding of their function. Through an enormous experimental effort1--4, the structures of around 100,000 unique proteins have been determined5, but this represents a small fraction of the billions of known protein sequences6,7. Structural coverage is bottlenecked by the months to years of painstaking effort required to determine a single protein structure. Accurate computational approaches are needed to address this gap and to enable large-scale structural bioinformatics. Predicting the three-dimensional structure that a protein will adopt based solely on its amino acid sequence---the structure prediction component of the `protein folding problem'8---has been an important open research problem for more than 50~years9. Despite recent progress10--14, existing methods fall far~short of atomic accuracy, especially when no homologous structure is available. Here we provide the first computational method that can regularly predict protein structures with atomic accuracy even in cases in which no similar structure is known. We validated an entirely redesigned version of our neural network-based model, AlphaFold, in the challenging 14th Critical Assessment of protein Structure Prediction (CASP14)15, demonstrating accuracy competitive with experimental structures in a majority of cases and greatly outperforming other methods. Underpinning the latest version of AlphaFold is a novel machine learning approach that incorporates physical and biological knowledge about protein structure, leveraging multi-sequence alignments, into the design of the deep learning algorithm.},
+  copyright = {2021 The Author(s)},
+  langid = {english},
+  keywords = {Computational biophysics,Machine learning,Protein structure predictions,Structural biology}
 }
 
-@article{hughes2018inequity,
-  title={Inequity aversion improves cooperation in intertemporal social dilemmas},
-  author={Hughes, Edward and Leibo, Joel Z and Phillips, Matthew and Tuyls, Karl and Due{\~n}ez-Guzman, Edgar and Garc{\'\i}a Casta{\~n}eda, Antonio and Dunning, Iain and Zhu, Tina and McKee, Kevin and Koster, Raphael and others},
-  journal={Advances in neural information processing systems},
-  volume={31},
-  year={2018}
+@article{watsonNovoDesignProtein2023,
+  title = {De Novo Design of Protein Structure and Function with {{RFdiffusion}}},
+  author = {Watson, Joseph L. and Juergens, David and Bennett, Nathaniel R. and Trippe, Brian L. and Yim, Jason and Eisenach, Helen E. and Ahern, Woody and Borst, Andrew J. and Ragotte, Robert J. and Milles, Lukas F. and Wicky, Basile I. M. and Hanikel, Nikita and Pellock, Samuel J. and Courbet, Alexis and Sheffler, William and Wang, Jue and Venkatesh, Preetham and Sappington, Isaac and Torres, Susana V{\'a}zquez and Lauko, Anna and De Bortoli, Valentin and Mathieu, Emile and Ovchinnikov, Sergey and Barzilay, Regina and Jaakkola, Tommi S. and DiMaio, Frank and Baek, Minkyung and Baker, David},
+  year = {2023},
+  month = aug,
+  journal = {Nature},
+  volume = {620},
+  number = {7976},
+  pages = {1089--1100},
+  publisher = {Nature Publishing Group},
+  issn = {1476-4687},
+  doi = {10.1038/s41586-023-06415-8},
+  urldate = {2025-06-29},
+  abstract = {There has been considerable recent progress in designing new proteins using deep-learning methods1--9. Despite this progress, a general deep-learning framework for protein design that enables solution of a wide range of design challenges, including de novo binder design and design of higher-order symmetric architectures, has yet to be described. Diffusion models10,11 have had considerable success in image and language generative modelling but limited success when applied to protein modelling, probably due to the complexity of protein backbone geometry and sequence--structure relationships. Here we show that by fine-tuning the RoseTTAFold structure prediction network on protein structure denoising tasks, we obtain a generative model of protein backbones that achieves outstanding performance on unconditional and topology-constrained protein monomer design, protein binder design, symmetric oligomer design, enzyme active site scaffolding and symmetric motif scaffolding for therapeutic and metal-binding protein design. We demonstrate the power and generality of the method, called RoseTTAFold diffusion (RFdiffusion), by experimentally characterizing the structures and functions of hundreds of designed symmetric assemblies, metal-binding proteins and protein binders. The accuracy of RFdiffusion is confirmed by the cryogenic electron microscopy structure of a designed binder in complex with influenza haemagglutinin that is nearly identical to the design model. In a manner analogous to networks that produce images from user-specified inputs, RFdiffusion enables the design of diverse functional proteins from simple molecular specifications.},
+  copyright = {2023 The Author(s)},
+  langid = {english},
+  keywords = {Machine learning,Protein design,Proteins}
 }
 
-@article{schafer2022learning,
-  title={Learning task embeddings for teamwork adaptation in multi-agent reinforcement learning},
-  author={Sch{\"a}fer, Lukas and Christianos, Filippos and Storkey, Amos and Albrecht, Stefano V},
-  journal={arXiv preprint arXiv:2207.02249},
-  year={2022}
+@article{wuProteinStructureGeneration2024,
+  title = {Protein Structure Generation via Folding Diffusion},
+  author = {Wu, Kevin E. and Yang, Kevin K. and {van den Berg}, Rianne and Alamdari, Sarah and Zou, James Y. and Lu, Alex X. and Amini, Ava P.},
+  year = {2024},
+  month = feb,
+  journal = {Nature Communications},
+  volume = {15},
+  number = {1},
+  pages = {1059},
+  publisher = {Nature Publishing Group},
+  issn = {2041-1723},
+  doi = {10.1038/s41467-024-45051-2},
+  urldate = {2025-06-29},
+  abstract = {The ability to computationally generate novel yet physically foldable protein structures could lead to new biological discoveries and new treatments targeting yet incurable diseases. Despite recent advances in protein structure prediction, directly generating diverse, novel protein structures from neural networks remains difficult. In this work, we present a diffusion-based generative model that generates protein backbone structures via a procedure inspired by the natural folding process. We describe a protein backbone structure as a sequence of angles capturing the relative orientation of the constituent backbone atoms, and generate structures by denoising from a random, unfolded state towards a stable folded structure. Not only does this mirror how proteins natively twist into energetically favorable conformations, the inherent shift and rotational invariance of this representation crucially alleviates the need for more complex equivariant networks. We train a denoising diffusion probabilistic model with a simple transformer backbone and demonstrate that our resulting model unconditionally generates highly realistic protein structures with complexity and structural patterns akin to those of naturally-occurring proteins. As a useful resource, we release an open-source codebase and trained models for protein structure diffusion.},
+  copyright = {2024 The Author(s)},
+  langid = {english},
+  keywords = {Biochemistry,Biophysics,Computational models,Protein design}
 }
 
-@article{ho2020denoising,
-  title={Denoising diffusion probabilistic models},
-  author={Ho, Jonathan and Jain, Ajay and Abbeel, Pieter},
-  journal={Advances in neural information processing systems},
-  volume={33},
-  pages={6840--6851},
-  year={2020}
-}
-
-@article{lipman2022flow,
-  title={Flow matching for generative modeling},
-  author={Lipman, Yaron and Chen, Ricky TQ and Ben-Hamu, Heli and Nickel, Maximilian and Le, Matt},
-  journal={arXiv preprint arXiv:2210.02747},
-  year={2022}
+@article{yimDiffusionModelsProtein2024,
+  title = {Diffusion Models in Protein Structure and Docking},
+  author = {Yim, Jason and St{\"a}rk, Hannes and Corso, Gabriele and Jing, Bowen and Barzilay, Regina and Jaakkola, Tommi S.},
+  year = {2024},
+  journal = {WIREs Computational Molecular Science},
+  volume = {14},
+  number = {2},
+  pages = {e1711},
+  issn = {1759-0884},
+  doi = {10.1002/wcms.1711},
+  urldate = {2025-06-29},
+  abstract = {Generative AI is rapidly transforming the frontier of research in computational structural biology. Indeed, recent successes have substantially advanced protein design and drug discovery. One of the key methodologies underlying these advances is diffusion models (DM). Diffusion models originated in computer vision, rapidly taking over image generation and offering superior quality and performance. These models were subsequently extended and modified for uses in other areas including computational structural biology. DMs are well equipped to model high dimensional, geometric data while exploiting key strengths of deep learning. In structural biology, for example, they have achieved state-of-the-art results on protein 3D structure generation and small molecule docking. This review covers the basics of diffusion models, associated modeling choices regarding molecular representations, generation capabilities, prevailing heuristics, as well as key limitations and forthcoming refinements. We also provide best practices around evaluation procedures to help establish rigorous benchmarking and evaluation. The review is intended to provide a fresh view into the state-of-the-art as well as highlight its potentials and current challenges of recent generative techniques in computational structural biology. This article is categorized under: Data Science {$>$} Artificial Intelligence/Machine Learning Structure and Mechanism {$>$} Molecular Structures Software {$>$} Molecular Modeling},
+  copyright = {{\copyright} 2024 The Authors. WIREs Computational Molecular Science published by Wiley Periodicals LLC.},
+  langid = {english},
+  keywords = {diffusion models,docking,generative models,proteins}
 }
 
 @article{vahdat2021score,

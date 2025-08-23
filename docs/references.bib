@@ -1,3 +1,7 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Diffusion Models: DDPM, SBD
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% DDPM
 @inproceedings{hoDenoisingDiffusionProbabilistic2020,
   title = {Denoising {{Diffusion Probabilistic Models}}},
   booktitle = {Advances in {{Neural Information Processing Systems}}},
@@ -10,14 +14,70 @@
   abstract = {We present high quality image synthesis results using diffusion probabilistic models, a class of latent variable models inspired by considerations from nonequilibrium thermodynamics. Our best results are obtained by training on a weighted variational bound designed according to a novel connection between diffusion probabilistic models and denoising score matching with Langevin dynamics, and our models naturally admit a progressive lossy decompression scheme that can be interpreted as a generalization of autoregressive decoding. On the unconditional CIFAR10 dataset, we obtain an Inception score of 9.46 and a state-of-the-art FID score of 3.17. On 256x256 LSUN, we obtain sample quality similar to ProgressiveGAN.}
 }
 
-
-@article{song2020score,
-  title={Score-based generative modeling through stochastic differential equations},
-  author={Song, Yang and Sohl-Dickstein, Jascha and Kingma, Diederik P and Kumar, Abhishek and Ermon, Stefano and Poole, Ben},
-  journal={arXiv preprint arXiv:2011.13456},
-  year={2020}
+% Cosine Schedule
+@misc{nicholImprovedDenoisingDiffusion2021,
+  title = {Improved {{Denoising Diffusion Probabilistic Models}}},
+  author = {Nichol, Alex and Dhariwal, Prafulla},
+  year = {2021},
+  month = feb,
+  number = {arXiv:2102.09672},
+  eprint = {2102.09672},
+  primaryclass = {cs},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.2102.09672},
+  urldate = {2025-07-13},
+  abstract = {Denoising diffusion probabilistic models (DDPM) are a class of generative models which have recently been shown to produce excellent samples. We show that with a few simple modifications, DDPMs can also achieve competitive log-likelihoods while maintaining high sample quality. Additionally, we find that learning variances of the reverse diffusion process allows sampling with an order of magnitude fewer forward passes with a negligible difference in sample quality, which is important for the practical deployment of these models. We additionally use precision and recall to compare how well DDPMs and GANs cover the target distribution. Finally, we show that the sample quality and likelihood of these models scale smoothly with model capacity and training compute, making them easily scalable. We release our code at https://github.com/openai/improved-diffusion},
+  archiveprefix = {arXiv},
+  keywords = {Computer Science - Artificial Intelligence,Computer Science - Machine Learning,Statistics - Machine Learning}
 }
 
+% Reverse SDE
+@article{andersonReversetimeDiffusionEquation1982,
+  title = {Reverse-Time Diffusion Equation Models},
+  author = {Anderson, Brian D. O.},
+  year = {1982},
+  month = may,
+  journal = {Stochastic Processes and their Applications},
+  volume = {12},
+  number = {3},
+  pages = {313--326},
+  issn = {0304-4149},
+  doi = {10.1016/0304-4149(82)90051-5},
+  urldate = {2025-07-04},
+  abstract = {Reverse-time stochastic diffusion equation models are defined and it is shown how most processes defined via a forward-time or conventional diffusion equation model have an associated reverse-time model.}
+}
+
+% Score Matching
+@article{hyvarinenEstimationNonNormalizedStatistical2005,
+  title = {Estimation of {{Non-Normalized Statistical Models}} by {{Score Matching}}},
+  author = {Hyv{\"a}rinen, Aapo},
+  year = {2005},
+  journal = {Journal of Machine Learning Research},
+  volume = {6},
+  number = {24},
+  pages = {695--709},
+  issn = {1533-7928},
+  urldate = {2025-07-04},
+  abstract = {One often wants to estimate statistical models where the probability density function is known only up to a multiplicative normalization constant. Typically, one then has to resort to Markov Chain Monte Carlo methods, or approximations of the normalization constant. Here, we propose that such models can be estimated by minimizing the expected squared distance between the gradient of the log-density given by the model and the gradient of the log-density of the observed data. While the estimation of the gradient of log-density function is, in principle, a very difficult non-parametric problem, we prove a surprising result that gives a simple formula for this objective function. The density function of the observed data does not appear in this formula, which simplifies to a sample average of a sum of some derivatives of the log-density given by the model. The validity of the method is demonstrated on multivariate Gaussian and independent component analysis models, and by estimating an overcomplete filter set for natural image data.}
+}
+
+% Denoising Score Matching
+@article{vincentConnectionScoreMatching2011,
+  title = {A {{Connection Between Score Matching}} and {{Denoising Autoencoders}}},
+  author = {Vincent, Pascal},
+  year = {2011},
+  month = jul,
+  journal = {Neural Computation},
+  volume = {23},
+  number = {7},
+  pages = {1661--1674},
+  issn = {0899-7667},
+  doi = {10.1162/NECO_a_00142},
+  urldate = {2025-07-04},
+  abstract = {Denoising autoencoders have been previously shown to be competitive alternatives to restricted Boltzmann machines for unsupervised pretraining of each layer of a deep architecture. We show that a simple denoising autoencoder training criterion is equivalent to matching the score (with respect to the data) of a specific energy-based model to that of a nonparametric Parzen density estimator of the data. This yields several useful insights. It defines a proper probabilistic model for the denoising autoencoder technique, which makes it in principle possible to sample from them or rank examples by their energy. It suggests a different way to apply score matching that is related to learning to denoise and does not require computing second derivatives. It justifies the use of tied weights between the encoder and decoder and suggests ways to extend the success of denoising autoencoders to a larger family of energy-based models.}
+}
+
+% Random Fourier Features
 @inproceedings{tancikFourierFeaturesLet2020,
   title = {Fourier {{Features Let Networks Learn High Frequency Functions}} in {{Low Dimensional Domains}}},
   booktitle = {Advances in {{Neural Information Processing Systems}}},
@@ -28,6 +88,18 @@
   publisher = {Curran Associates, Inc.},
   urldate = {2025-07-23},
   abstract = {We show that passing input points through a simple Fourier feature mapping enables a multilayer perceptron (MLP) to learn high-frequency functions in low-dimensional problem domains. These results shed light on recent advances in computer vision and graphics that achieve state-of-the-art results by using MLPs to represent complex 3D objects and scenes. Using tools from the neural tangent kernel (NTK) literature, we show that a standard MLP has impractically slow convergence to high frequency signal components. To overcome this spectral bias, we use a Fourier feature mapping to transform the effective NTK into a stationary kernel with a tunable bandwidth. We suggest an approach for selecting problem-specific Fourier features that greatly improves the performance of MLPs for low-dimensional regression tasks relevant to the computer vision and graphics communities.}
+}
+
+% SBD
+@inproceedings{song2021ScoreBasedGenerativeModeling,
+  title = {Score-{{Based Generative Modeling}} through {{Stochastic Differential Equations}}},
+  booktitle = {International {{Conference}} on {{Learning Representations}}},
+  author = {Song, Yang and {Sohl-Dickstein}, Jascha and Kingma, Diederik P. and Kumar, Abhishek and Ermon, Stefano and Poole, Ben},
+  year = {2021},
+  month = jan,
+  urldate = {2025-08-23},
+  abstract = {Creating noise from data is easy; creating data from noise is generative modeling. We present a stochastic differential equation (SDE) that smoothly transforms a complex data distribution to a known prior distribution by slowly injecting noise, and a corresponding reverse-time SDE that transforms the prior distribution back into the data distribution by slowly removing the noise. Crucially, the reverse-time SDE depends only on the time-dependent gradient field (a.k.a., score) of the perturbed data distribution. By leveraging advances in score-based generative modeling, we can accurately estimate these scores with neural networks, and use numerical SDE solvers to generate samples. We show that this framework encapsulates previous approaches in score-based generative modeling and diffusion probabilistic modeling, allowing for new sampling procedures and new modeling capabilities. In particular, we introduce a predictor-corrector framework to correct errors in the evolution of the discretized reverse-time SDE. We also derive an equivalent neural ODE that samples from the same distribution as the SDE, but additionally enables exact likelihood computation, and improved sampling efficiency. In addition, we provide a new way to solve inverse problems with score-based models, as demonstrated with experiments on class-conditional generation, image inpainting, and colorization. Combined with multiple architectural improvements, we achieve record-breaking performance for unconditional image generation on CIFAR-10 with an Inception score of 9.89 and FID of 2.20, a competitive likelihood of 2.99 bits/dim, and demonstrate high fidelity generation of \$1024{\textbackslash}times 1024\$ images for the first time from a score-based generative model.},
+  langid = {english}
 }
 
 @inproceedings{songMaximumLikelihoodTraining2021,
@@ -41,6 +113,9 @@
   urldate = {2025-08-22}
 }
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% VAE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 @misc{kingma2022AutoEncodingVariationalBayes,
   title = {Auto-{{Encoding Variational Bayes}}},
   author = {Kingma, Diederik P. and Welling, Max},
@@ -58,6 +133,9 @@
   keywords = {Computer Science - Machine Learning,Statistics - Machine Learning}
 }
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% GAN
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 @article{goodfellow2020GenerativeAdversarialNetworks,
   title = {Generative Adversarial Networks},
   author = {Goodfellow, Ian and {Pouget-Abadie}, Jean and Mirza, Mehdi and Xu, Bing and {Warde-Farley}, David and Ozair, Sherjil and Courville, Aaron and Bengio, Yoshua},
@@ -84,6 +162,9 @@
   urldate = {2025-08-22}
 }
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Protein Generation with Diffusion
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 @article{jumper2021HighlyAccurateProtein,
   title = {Highly Accurate Protein Structure Prediction with {{AlphaFold}}},
   author = {Jumper, John and Evans, Richard and Pritzel, Alexander and Green, Tim and Figurnov, Michael and Ronneberger, Olaf and Tunyasuvunakool, Kathryn and Bates, Russ and {\v Z}{\'i}dek, Augustin and Potapenko, Anna and Bridgland, Alex and Meyer, Clemens and Kohl, Simon A. A. and Ballard, Andrew J. and Cowie, Andrew and {Romera-Paredes}, Bernardino and Nikolov, Stanislav and Jain, Rishub and Adler, Jonas and Back, Trevor and Petersen, Stig and Reiman, David and Clancy, Ellen and Zielinski, Michal and Steinegger, Martin and Pacholska, Michalina and Berghammer, Tamas and Bodenstein, Sebastian and Silver, David and Vinyals, Oriol and Senior, Andrew W. and Kavukcuoglu, Koray and Kohli, Pushmeet and Hassabis, Demis},
@@ -158,49 +239,106 @@
   keywords = {diffusion models,docking,generative models,proteins}
 }
 
-@article{vahdat2021score,
-  title={Score-based generative modeling in latent space},
-  author={Vahdat, Arash and Kreis, Karsten and Kautz, Jan},
-  journal={Advances in neural information processing systems},
-  volume={34},
-  pages={11287--11302},
-  year={2021}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% GNN
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+@article{scarselliGraphNeuralNetwork2009,
+  title = {The {{Graph Neural Network Model}}},
+  author = {Scarselli, Franco and Gori, Marco and Tsoi, Ah Chung and Hagenbuchner, Markus and Monfardini, Gabriele},
+  year = {2009},
+  month = jan,
+  journal = {IEEE Transactions on Neural Networks},
+  volume = {20},
+  number = {1},
+  pages = {61--80},
+  issn = {1941-0093},
+  doi = {10.1109/TNN.2008.2005605},
+  urldate = {2025-07-23},
+  abstract = {Many underlying relationships among data in several areas of science and engineering, e.g., computer vision, molecular chemistry, molecular biology, pattern recognition, and data mining, can be represented in terms of graphs. In this paper, we propose a new neural network model, called graph neural network (GNN) model, that extends existing neural network methods for processing the data represented in graph domains. This GNN model, which can directly process most of the practically useful types of graphs, e.g., acyclic, cyclic, directed, and undirected, implements a function tau(G,n) isin IRm that maps a graph G and one of its nodes n into an m-dimensional Euclidean space. A supervised learning algorithm is derived to estimate the parameters of the proposed GNN model. The computational cost of the proposed algorithm is also considered. Some experimental results are shown to validate the proposed learning algorithm, and to demonstrate its generalization capabilities.},
+  keywords = {Biological system modeling,Biology,Chemistry,Computer vision,Data engineering,Data mining,graph neural networks (GNNs),graph processing,Graphical domains,Neural networks,Parameter estimation,Pattern recognition,recursive neural networks,Supervised learning}
 }
 
-@article{salimans2022progressive,
-  title={Progressive distillation for fast sampling of diffusion models},
-  author={Salimans, Tim and Ho, Jonathan},
-  journal={arXiv preprint arXiv:2202.00512},
-  year={2022}
+@misc{velickovicGraphAttentionNetworks2018,
+  title = {Graph {{Attention Networks}}},
+  author = {Veli{\v c}kovi{\'c}, Petar and Cucurull, Guillem and Casanova, Arantxa and Romero, Adriana and Li{\`o}, Pietro and Bengio, Yoshua},
+  year = {2018},
+  month = feb,
+  number = {arXiv:1710.10903},
+  eprint = {1710.10903},
+  primaryclass = {stat},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.1710.10903},
+  urldate = {2025-07-23},
+  abstract = {We present graph attention networks (GATs), novel neural network architectures that operate on graph-structured data, leveraging masked self-attentional layers to address the shortcomings of prior methods based on graph convolutions or their approximations. By stacking layers in which nodes are able to attend over their neighborhoods' features, we enable (implicitly) specifying different weights to different nodes in a neighborhood, without requiring any kind of costly matrix operation (such as inversion) or depending on knowing the graph structure upfront. In this way, we address several key challenges of spectral-based graph neural networks simultaneously, and make our model readily applicable to inductive as well as transductive problems. Our GAT models have achieved or matched state-of-the-art results across four established transductive and inductive graph benchmarks: the Cora, Citeseer and Pubmed citation network datasets, as well as a protein-protein interaction dataset (wherein test graphs remain unseen during training).},
+  archiveprefix = {arXiv},
+  keywords = {Computer Science - Artificial Intelligence,Computer Science - Machine Learning,Computer Science - Social and Information Networks,Statistics - Machine Learning}
 }
 
-@article{huang2022riemannian,
-  title={Riemannian diffusion models},
-  author={Huang, Chin-Wei and Aghajohari, Milad and Bose, Joey and Panangaden, Prakash and Courville, Aaron C},
-  journal={Advances in Neural Information Processing Systems},
-  volume={35},
-  pages={2750--2761},
-  year={2022}
+@inproceedings{cai2021GraphNormPrincipledApproach,
+  title = {{{GraphNorm}}: {{A Principled Approach}} to {{Accelerating Graph Neural Network Training}}},
+  shorttitle = {{{GraphNorm}}},
+  booktitle = {Proceedings of the 38th {{International Conference}} on {{Machine Learning}}},
+  author = {Cai, Tianle and Luo, Shengjie and Xu, Keyulu and He, Di and Liu, Tie-Yan and Wang, Liwei},
+  year = {2021},
+  month = jul,
+  pages = {1204--1215},
+  publisher = {PMLR},
+  issn = {2640-3498},
+  urldate = {2025-08-23},
+  abstract = {Normalization is known to help the optimization of deep neural networks. Curiously, different architectures require specialized normalization methods. In this paper, we study what normalization is effective for Graph Neural Networks (GNNs). First, we adapt and evaluate the existing methods from other domains to GNNs. Faster convergence is achieved with InstanceNorm compared to BatchNorm and LayerNorm. We provide an explanation by showing that InstanceNorm serves as a preconditioner for GNNs, but such preconditioning effect is weaker with BatchNorm due to the heavy batch noise in graph datasets. Second, we show that the shift operation in InstanceNorm results in an expressiveness degradation of GNNs for highly regular graphs. We address this issue by proposing GraphNorm with a learnable shift. Empirically, GNNs with GraphNorm converge faster compared to GNNs using other normalization. GraphNorm also improves the generalization of GNNs, achieving better performance on graph classification benchmarks.},
+  langid = {english}
 }
 
-@article{chung2022improving,
-  title={Improving diffusion models for inverse problems using manifold constraints},
-  author={Chung, Hyungjin and Sim, Byeongsu and Ryu, Dohoon and Ye, Jong Chul},
-  journal={Advances in Neural Information Processing Systems},
-  volume={35},
-  pages={25683--25696},
-  year={2022}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% PyG
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+@inproceedings{PyG1.0,
+  title={Fast Graph Representation Learning with {PyTorch Geometric}},
+  author={Fey, Matthias and Lenssen, Jan E.},
+  booktitle={ICLR Workshop on Representation Learning on Graphs and Manifolds},
+  year={2019},
 }
 
-@article{de2022riemannian,
-  title={Riemannian score-based generative modelling},
-  author={De Bortoli, Valentin and Mathieu, Emile and Hutchinson, Michael and Thornton, James and Teh, Yee Whye and Doucet, Arnaud},
-  journal={Advances in Neural Information Processing Systems},
-  volume={35},
-  pages={2406--2422},
-  year={2022}
+@inproceedings{PyG2.0,
+  title={{PyG} 2.0: Scalable Learning on Real World Graphs},
+  author={Fey, Matthias and Sunil, Jinu and Nitta, Akihiro and Puri, Rishi and Shah, Manan and Stojanovi{\v{c}}, Bla{\v{z}} and Bendias, Ramona and Alexandria, Barghi and Kocijan, Vid and Zhang, Zecheng and He, Xinwei and Lenssen, Jan E. and Leskovec, Jure},
+  booktitle={Temporal Graph Learning Workshop @ KDD},
+  year={2025},
 }
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% PyMOL
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+@unpublished{AxPyMOL,
+	Author = {{Schr\"odinger, LLC}},
+	Date-Added = {2010-08-19 17:58:20 -0400},
+	Date-Modified = {2015-12-22 18:04:08 -0400},
+	Month = {November},
+	Title = {The {AxPyMOL} Molecular Graphics Plugin for {Microsoft PowerPoint}, Version~1.8},
+	Year = {2015}}
+
+@unpublished{JyMOL,
+	Author = {{Schr\"odinger, LLC}},
+	Date-Added = {2010-08-19 17:55:56 -0400},
+	Date-Modified = {2015-12-22 18:04:08 -0400},
+	Month = {November},
+	Title = {The {JyMOL} Molecular Graphics Development Component, Version~1.8},
+	Year = {2015}}
+
+@unpublished{PyMOL,
+	Annote = {PyMOL
+
+The PyMOL Molecular Graphics System, Version 1.8, Schr{\"o}dinger, LLC.},
+	Author = {{Schr\"odinger, LLC}},
+	Date-Added = {2010-08-19 17:29:55 -0400},
+	Date-Modified = {2015-12-22 18:04:08 -0400},
+	Month = {November},
+	Title = {The {PyMOL} Molecular Graphics System, Version~1.8},
+	Year = {2015}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% E3NN
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 @misc{thomasTensorFieldNetworks2018,
   title = {Tensor Field Networks: {{Rotation-}} and Translation-Equivariant Neural Networks for {{3D}} Point Clouds},
   shorttitle = {Tensor Field Networks},
@@ -252,147 +390,38 @@
   keywords = {Computer Science - Machine Learning,Statistics - Machine Learning}
 }
 
-@article{hyvarinenEstimationNonNormalizedStatistical2005,
-  title = {Estimation of {{Non-Normalized Statistical Models}} by {{Score Matching}}},
-  author = {Hyv{\"a}rinen, Aapo},
-  year = {2005},
-  journal = {Journal of Machine Learning Research},
-  volume = {6},
-  number = {24},
-  pages = {695--709},
-  issn = {1533-7928},
-  urldate = {2025-07-04},
-  abstract = {One often wants to estimate statistical models where the probability density function is known only up to a multiplicative normalization constant. Typically, one then has to resort to Markov Chain Monte Carlo methods, or approximations of the normalization constant. Here, we propose that such models can be estimated by minimizing the expected squared distance between the gradient of the log-density given by the model and the gradient of the log-density of the observed data. While the estimation of the gradient of log-density function is, in principle, a very difficult non-parametric problem, we prove a surprising result that gives a simple formula for this objective function. The density function of the observed data does not appear in this formula, which simplifies to a sample average of a sum of some derivatives of the log-density given by the model. The validity of the method is demonstrated on multivariate Gaussian and independent component analysis models, and by estimating an overcomplete filter set for natural image data.}
-}
-
-@article{vincentConnectionScoreMatching2011,
-  title = {A {{Connection Between Score Matching}} and {{Denoising Autoencoders}}},
-  author = {Vincent, Pascal},
-  year = {2011},
+@misc{geiger2022E3nnEuclideanNeural,
+  title = {E3nn: {{Euclidean Neural Networks}}},
+  shorttitle = {E3nn},
+  author = {Geiger, Mario and Smidt, Tess},
+  year = {2022},
   month = jul,
-  journal = {Neural Computation},
-  volume = {23},
-  number = {7},
-  pages = {1661--1674},
-  issn = {0899-7667},
-  doi = {10.1162/NECO_a_00142},
-  urldate = {2025-07-04},
-  abstract = {Denoising autoencoders have been previously shown to be competitive alternatives to restricted Boltzmann machines for unsupervised pretraining of each layer of a deep architecture. We show that a simple denoising autoencoder training criterion is equivalent to matching the score (with respect to the data) of a specific energy-based model to that of a nonparametric Parzen density estimator of the data. This yields several useful insights. It defines a proper probabilistic model for the denoising autoencoder technique, which makes it in principle possible to sample from them or rank examples by their energy. It suggests a different way to apply score matching that is related to learning to denoise and does not require computing second derivatives. It justifies the use of tied weights between the encoder and decoder and suggests ways to extend the success of denoising autoencoders to a larger family of energy-based models.}
-}
-
-@article{andersonReversetimeDiffusionEquation1982,
-  title = {Reverse-Time Diffusion Equation Models},
-  author = {Anderson, Brian D. O.},
-  year = {1982},
-  month = may,
-  journal = {Stochastic Processes and their Applications},
-  volume = {12},
-  number = {3},
-  pages = {313--326},
-  issn = {0304-4149},
-  doi = {10.1016/0304-4149(82)90051-5},
-  urldate = {2025-07-04},
-  abstract = {Reverse-time stochastic diffusion equation models are defined and it is shown how most processes defined via a forward-time or conventional diffusion equation model have an associated reverse-time model.}
-}
-
-@book{leimkuhlerMolecularDynamicsDeterministic2015,
-  title = {Molecular {{Dynamics}}: {{With Deterministic}} and {{Stochastic Numerical Methods}}},
-  shorttitle = {Molecular {{Dynamics}}},
-  author = {Leimkuhler, Ben and Matthews, Charles},
-  year = {2015},
-  series = {Interdisciplinary {{Applied Mathematics}}},
-  volume = {39},
-  publisher = {Springer International Publishing},
-  address = {Cham},
-  doi = {10.1007/978-3-319-16375-8},
-  urldate = {2025-07-06},
-  copyright = {https://www.springernature.com/gp/researchers/text-and-data-mining},
-  isbn = {978-3-319-16374-1 978-3-319-16375-8},
-  langid = {english},
-  keywords = {65C2065P1065Z0582C3182C0582B80,biomolecular simulation,computational physics,materials modelling,molecular dynamics,theoretical chemistry}
-}
-
-@misc{nicholImprovedDenoisingDiffusion2021,
-  title = {Improved {{Denoising Diffusion Probabilistic Models}}},
-  author = {Nichol, Alex and Dhariwal, Prafulla},
-  year = {2021},
-  month = feb,
-  number = {arXiv:2102.09672},
-  eprint = {2102.09672},
+  number = {arXiv:2207.09453},
+  eprint = {2207.09453},
   primaryclass = {cs},
   publisher = {arXiv},
-  doi = {10.48550/arXiv.2102.09672},
-  urldate = {2025-07-13},
-  abstract = {Denoising diffusion probabilistic models (DDPM) are a class of generative models which have recently been shown to produce excellent samples. We show that with a few simple modifications, DDPMs can also achieve competitive log-likelihoods while maintaining high sample quality. Additionally, we find that learning variances of the reverse diffusion process allows sampling with an order of magnitude fewer forward passes with a negligible difference in sample quality, which is important for the practical deployment of these models. We additionally use precision and recall to compare how well DDPMs and GANs cover the target distribution. Finally, we show that the sample quality and likelihood of these models scale smoothly with model capacity and training compute, making them easily scalable. We release our code at https://github.com/openai/improved-diffusion},
+  doi = {10.48550/arXiv.2207.09453},
+  urldate = {2025-08-23},
+  abstract = {We present e3nn, a generalized framework for creating E(3) equivariant trainable functions, also known as Euclidean neural networks. e3nn naturally operates on geometry and geometric tensors that describe systems in 3D and transform predictably under a change of coordinate system. The core of e3nn are equivariant operations such as the TensorProduct class or the spherical harmonics functions that can be composed to create more complex modules such as convolutions and attention mechanisms. These core operations of e3nn can be used to efficiently articulate Tensor Field Networks, 3D Steerable CNNs, Clebsch-Gordan Networks, SE(3) Transformers and other E(3) equivariant networks.},
   archiveprefix = {arXiv},
-  keywords = {Computer Science - Artificial Intelligence,Computer Science - Machine Learning,Statistics - Machine Learning}
+  keywords = {Computer Science - Artificial Intelligence,Computer Science - Machine Learning,Computer Science - Neural and Evolutionary Computing}
 }
 
-@article{scarselliGraphNeuralNetwork2009,
-  title = {The {{Graph Neural Network Model}}},
-  author = {Scarselli, Franco and Gori, Marco and Tsoi, Ah Chung and Hagenbuchner, Markus and Monfardini, Gabriele},
-  year = {2009},
-  month = jan,
-  journal = {IEEE Transactions on Neural Networks},
-  volume = {20},
-  number = {1},
-  pages = {61--80},
-  issn = {1941-0093},
-  doi = {10.1109/TNN.2008.2005605},
-  urldate = {2025-07-23},
-  abstract = {Many underlying relationships among data in several areas of science and engineering, e.g., computer vision, molecular chemistry, molecular biology, pattern recognition, and data mining, can be represented in terms of graphs. In this paper, we propose a new neural network model, called graph neural network (GNN) model, that extends existing neural network methods for processing the data represented in graph domains. This GNN model, which can directly process most of the practically useful types of graphs, e.g., acyclic, cyclic, directed, and undirected, implements a function tau(G,n) isin IRm that maps a graph G and one of its nodes n into an m-dimensional Euclidean space. A supervised learning algorithm is derived to estimate the parameters of the proposed GNN model. The computational cost of the proposed algorithm is also considered. Some experimental results are shown to validate the proposed learning algorithm, and to demonstrate its generalization capabilities.},
-  keywords = {Biological system modeling,Biology,Chemistry,Computer vision,Data engineering,Data mining,graph neural networks (GNNs),graph processing,Graphical domains,Neural networks,Parameter estimation,Pattern recognition,recursive neural networks,Supervised learning}
+@misc{geiger2025EuclideanNeuralNetworks,
+  title = {Euclidean Neural Networks: E3nn},
+  shorttitle = {E3nn/E3nn},
+  author = {Geiger, Mario and Smidt, Tess and M, Alby and Miller, Benjamin Kurt and Boomsma, Wouter and Dice, Bradley and Lapchevskyi, Kostiantyn and Kotak, Mit and Tyszkiewicz, Micha{\l} and Uhrin, Martin and Batzner, Simon and Madisetti, Dylan and Frellsen, Jes and Maheshkar, Saurav and Jung, Nuri and Fomitchev, Boris and Wen, Mingjian and {jkh} and Sanborn, Sophia and Barnes, Richard and Kohler, Colin and Morehead, Alex and Tan, Chuin Wei and Rackers, Josh and LFu and R{\o}d, Marcel and Bailey, Michael and Brocidiacono, Michael and {eszter137} and McConkey, Ryley},
+  year = {2025},
+  month = mar,
+  doi = {10.5281/zenodo.15069471},
+  urldate = {2025-08-23},
+  abstract = {What's Changed Refactor by @cw-tan in https://github.com/e3nn/e3nn/pull/502 0.5.6 version bump by @mitkotak in https://github.com/e3nn/e3nn/pull/504 New Contributors @cw-tan made their first contribution in https://github.com/e3nn/e3nn/pull/502 Full Changelog: https://github.com/e3nn/e3nn/compare/0.5.5...0.5.6},
+  howpublished = {Zenodo}
 }
 
-@misc{kipfSemiSupervisedClassificationGraph2017,
-  title = {Semi-{{Supervised Classification}} with {{Graph Convolutional Networks}}},
-  author = {Kipf, Thomas N. and Welling, Max},
-  year = {2017},
-  month = feb,
-  number = {arXiv:1609.02907},
-  eprint = {1609.02907},
-  primaryclass = {cs},
-  publisher = {arXiv},
-  doi = {10.48550/arXiv.1609.02907},
-  urldate = {2025-07-23},
-  abstract = {We present a scalable approach for semi-supervised learning on graph-structured data that is based on an efficient variant of convolutional neural networks which operate directly on graphs. We motivate the choice of our convolutional architecture via a localized first-order approximation of spectral graph convolutions. Our model scales linearly in the number of graph edges and learns hidden layer representations that encode both local graph structure and features of nodes. In a number of experiments on citation networks and on a knowledge graph dataset we demonstrate that our approach outperforms related methods by a significant margin.},
-  archiveprefix = {arXiv},
-  keywords = {Computer Science - Machine Learning,Statistics - Machine Learning}
-}
-
-@misc{velickovicGraphAttentionNetworks2018,
-  title = {Graph {{Attention Networks}}},
-  author = {Veli{\v c}kovi{\'c}, Petar and Cucurull, Guillem and Casanova, Arantxa and Romero, Adriana and Li{\`o}, Pietro and Bengio, Yoshua},
-  year = {2018},
-  month = feb,
-  number = {arXiv:1710.10903},
-  eprint = {1710.10903},
-  primaryclass = {stat},
-  publisher = {arXiv},
-  doi = {10.48550/arXiv.1710.10903},
-  urldate = {2025-07-23},
-  abstract = {We present graph attention networks (GATs), novel neural network architectures that operate on graph-structured data, leveraging masked self-attentional layers to address the shortcomings of prior methods based on graph convolutions or their approximations. By stacking layers in which nodes are able to attend over their neighborhoods' features, we enable (implicitly) specifying different weights to different nodes in a neighborhood, without requiring any kind of costly matrix operation (such as inversion) or depending on knowing the graph structure upfront. In this way, we address several key challenges of spectral-based graph neural networks simultaneously, and make our model readily applicable to inductive as well as transductive problems. Our GAT models have achieved or matched state-of-the-art results across four established transductive and inductive graph benchmarks: the Cora, Citeseer and Pubmed citation network datasets, as well as a protein-protein interaction dataset (wherein test graphs remain unseen during training).},
-  archiveprefix = {arXiv},
-  keywords = {Computer Science - Artificial Intelligence,Computer Science - Machine Learning,Computer Science - Social and Information Networks,Statistics - Machine Learning}
-}
-
-@misc{shiMaskedLabelPrediction2021,
-  title = {Masked {{Label Prediction}}: {{Unified Message Passing Model}} for {{Semi-Supervised Classification}}},
-  shorttitle = {Masked {{Label Prediction}}},
-  author = {Shi, Yunsheng and Huang, Zhengjie and Feng, Shikun and Zhong, Hui and Wang, Wenjin and Sun, Yu},
-  year = {2021},
-  month = may,
-  number = {arXiv:2009.03509},
-  eprint = {2009.03509},
-  primaryclass = {cs},
-  publisher = {arXiv},
-  doi = {10.48550/arXiv.2009.03509},
-  urldate = {2025-07-23},
-  abstract = {Graph neural network (GNN) and label propagation algorithm (LPA) are both message passing algorithms, which have achieved superior performance in semi-supervised classification. GNN performs feature propagation by a neural network to make predictions, while LPA uses label propagation across graph adjacency matrix to get results. However, there is still no effective way to directly combine these two kinds of algorithms. To address this issue, we propose a novel Unified Message Passaging Model (UniMP) that can incorporate feature and label propagation at both training and inference time. First, UniMP adopts a Graph Transformer network, taking feature embedding and label embedding as input information for propagation. Second, to train the network without overfitting in self-loop input label information, UniMP introduces a masked label prediction strategy, in which some percentage of input label information are masked at random, and then predicted. UniMP conceptually unifies feature propagation and label propagation and is empirically powerful. It obtains new state-of-the-art semi-supervised classification results in Open Graph Benchmark (OGB).},
-  archiveprefix = {arXiv},
-  keywords = {Computer Science - Machine Learning,Statistics - Machine Learning}
-}
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Transformers, Attention Layers
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 @inproceedings{vaswaniAttentionAllYou2017,
   title = {Attention Is {{All}} You {{Need}}},
   booktitle = {Advances in {{Neural Information Processing Systems}}},

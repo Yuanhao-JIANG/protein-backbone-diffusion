@@ -49,7 +49,7 @@
 \begin{document}
 \pagenumbering{gobble} % Turn off page numbering until first section.
 
-% Title page - needs Stats_Logo.png
+% Title page
 \begin{titlepage}
 \begin{center}
 \vspace{1cm}
@@ -60,11 +60,11 @@
 \includegraphics[scale=.8]{stats_logo_RGB.jpg}
 \end{figure}
 \vspace{2.0cm}
-\Huge{Here is a very long title which should spread over two or more lines.\\}
+\Huge{Score-Based Diffusion Models for Protein Backbone Generation\\}
 \vspace{2.0cm}
 \large{ by \\[14pt] Yuanhao Jiang \\[8pt] Wolfson College} \\
 \vspace{2.2cm}
-\large{A dissertation submitted in partial fulfilment of the degree of Master of Science in Applied Statistics.
+\large{A dissertation submitted in partial fulfilment of the degree of Master of Science in Statistical Science.
 } \\
 \vspace{.5cm}
 \large{\emph{Department of Statistics, 24--29 St Giles, \\Oxford, OX1 3LB}} \\
@@ -78,7 +78,7 @@ This is my own work (except where otherwise indicated)
 \vspace{2.5in}
 
 \begin{center}
-Candidate: Full Name\\
+Candidate: Yuanhao Jiang\\
 \vspace{1.0in}
 Signed:.................................\\
 \vspace{1.0in}
@@ -134,93 +134,136 @@ By training such models on large structural datasets, it becomes possible to lea
 
 \section{Score-Based Diffusion for Generative Modelling}\label{sec:SBD}
 \subsection{Background and Motivation}
-Generative modelling aims to learn a distribution from which new samples can be drawn that resemble those observed in a dataset. Classical approaches include variational autoencoders (VAEs)~\cite{kingma2022AutoEncodingVariationalBayes}, which maximise a variational lower bound on the likelihood, and generative adversarial networks (GANs)~\cite{goodfellow2020GenerativeAdversarialNetworks}, which frame generation as an adversarial game. While each of these paradigms has been successful, they also suffer from characteristic drawbacks such as blurry reconstructions (VAEs) and mode collapse (GANs).
+Generative modelling aims to learn a distribution from which new samples can be drawn that resemble those observed in a dataset. Classical approaches include variational autoencoders (VAEs)~\citep{kingma2022AutoEncodingVariationalBayes}, which maximise a variational lower bound on the likelihood, and generative adversarial networks (GANs)~\citep{goodfellow2020GenerativeAdversarialNetworks}, which frame generation as an adversarial game. While each of these paradigms has been successful, they also suffer from characteristic drawbacks such as blurry reconstructions (VAEs) and mode collapse (GANs).
 
 Diffusion models represent a more recent class of generative models that address many of these limitations. The central idea is deceptively simple: one defines a forward process that gradually corrupts data with noise until the signal is destroyed, and then learns a reverse process that reconstructs data from noise. By formulating the forward process as a diffusion and training a neural network to approximate the reverse dynamics, diffusion models combine the flexibility of deep networks with the probabilistic rigour of latent-variable models. 
 
-In their original formulation, denoising diffusion probabilistic models (DDPMs)~\cite{hoDenoisingDiffusionProbabilistic2020} defined the forward process as a discrete-time Gaussian Markov chain. Subsequent work by Song et al.~\cite{song2021ScoreBasedGenerativeModeling} showed that diffusion models can be generalised to continuous-time stochastic differential equations (SDEs). In this framework, the key object is the score function, i.e.~the gradient of the log-density of the noisy distribution. Learning this score function allows one to simulate the reverse SDE and thereby generate new samples.
+In their original formulation, denoising diffusion probabilistic models (DDPMs)~\citep{hoDenoisingDiffusionProbabilistic2020} defined the forward process as a discrete-time Gaussian Markov chain. Subsequent work by \citet{song2021ScoreBasedGenerativeModeling} showed that diffusion models can be generalised to continuous-time stochastic differential equations (SDEs). In this framework, the key object is the score function, i.e.~the gradient of the log-density of the noisy distribution. Learning this score function allows one to simulate the reverse SDE and thereby generate new samples.
 
 This chapter develops the theoretical foundations of score-based diffusion models in detail. We begin with the definition of the forward diffusion process, proceed to the derivation of the reverse-time dynamics, introduce score matching as the training objective, and describe practical sampling algorithms and noise schedules. Together, these elements form the mathematical basis for applying diffusion models to protein backbone generation in later chapters.
 
 \subsection{Forward Diffusion Processes}
 The first component of a diffusion generative model is the forward, or noising, process. 
-This process gradually perturbs the data distribution into a tractable prior distribution, typically a standard Gaussian. The key requirement is that this transformation be both easy to sample from and analytically tractable, so that training objectives can be computed efficiently. 
+This process gradually perturbs the data distribution into a tractable prior distribution, typically a standard Gaussian. The key requirement is that this transformation be both easy to sample from and analytically tractable, so that training objectives can be computed efficiently.
 
 \subsubsection{Discrete-Time Formulation}
-Denoising diffusion probabilistic models (DDPMs)~\cite{hoDenoisingDiffusionProbabilistic2020} define the forward process as a Markov chain of \(T\) steps:
+Denote clean data samples by \(x_0 \sim p_{\text{data}}(x)\). Denoising diffusion probabilistic models (DDPMs)~\citep{hoDenoisingDiffusionProbabilistic2020} define the forward process as a Markov chain of \(N\) steps:
 \begin{align*}
-    q\left(x_{1:T}\mid x_0\right)=\prod_{t=1}^{T}q\left(x_t|x_{t-1}\right),
+    q\left(x_{1:N}\mid x_0\right)\coloneq\prod_{i=1}^{N}q\left(x_i|x_{i-1}\right),
 \end{align*}
 where each transition adds a small amount of Gaussian noise,
-\begin{align*}
-    q\left(x_t \mid x_{t-1}\right) = \mathcal{N}\!\left(x_t ; \sqrt{1-\beta_t}\,x_{t-1}, \, \beta_t I \right).
-\end{align*}
-Here, \(\{\beta_t\}_{t=1}^T\) is a variance schedule with \(\beta_t \in (0,1)\) controlling the noise injected at each step. 
-This design ensures that after sufficiently many steps, the distribution of \(x_T\) approaches an isotropic Gaussian, i.e.~\(q(x_T) \approx \mathcal{N}(0,I)\).
+\begin{align}\label{eq:DDPM-transition-kernel}
+    q\left(x_i \mid x_{i-1}\right)\coloneq\mathcal{N}\!\left(x_i ; \sqrt{1-\beta_i}\,x_{i-1}, \, \beta_i I \right).
+\end{align}
+This produces a sequence of progressively noisier variables \(\{x_i\}_{i=1}^N\). Here, \(\{\beta_i\}_{i=1}^N\) is a variance schedule with \(\beta_i \in (0,1)\) controlling the noise injected at each step.
 \begin{remark}
     A key property of the Gaussian forward process is that one can sample \(x_t\) at any arbitrary time step directly from the data \(x_0\):
     \begin{align*}
-        q\left(x_t \mid x_0\right) = \mathcal{N}\!\left(x_t ; \sqrt{\bar \alpha_t}\,x_0, \,(1-\bar \alpha_t) I \right),
+        q\left(x_i \mid x_0\right) = \mathcal{N}\!\left(x_i ; \sqrt{\bar \alpha_i}\,x_0, \,(1-\bar \alpha_i) I \right),
     \end{align*}
-    where \(\alpha_t = 1 - \beta_t\) and \(\bar \alpha_t = \prod_{s=1}^t \alpha_s\). This closed form is crucial for training, as it allows drawing noisy samples \(x_t\) without explicitly simulating all intermediate steps.
+    where \(\alpha_i = 1 - \beta_i\) and \(\bar \alpha_i = \prod_{s=1}^i \alpha_s\). This closed form is crucial for training, as it allows drawing noisy samples \(x_t\) without explicitly simulating all intermediate steps.
 \end{remark}
 
 \subsubsection{Continuous-Time Formulation}
-Song et al.~\cite{song2021ScoreBasedGenerativeModeling} generalised the discrete diffusion process to continuous time by taking the limit as \(T \to \infty\) and \(\beta_t \to 0\). In this setting, the forward process can be expressed as a stochastic differential equation (SDE) of the form
+\citet{song2021ScoreBasedGenerativeModeling} generalised the discrete diffusion process to continuous time by taking the limit as \(N \to \infty\) and \(\beta_i \to 0\). In this setting, the forward process can be expressed as a stochastic differential equation (SDE) of the form
 \begin{align}\label{eq:forward_sde}
-    dx = f(x,t)\,dt + g(t)\,dW_t,
+    dx = f(x,t)\,dt + g(t)\,dw,
 \end{align}
-where \(W_t\) is the Brownian motion, \(f(x,t)\) is a drift term, and \(g(t)\) controls the diffusion magnitude. Different choices of \(f\) and \(g\) yield different diffusion processes,
+where \(w\) is the Brownian motion, \(f(x,t)\) is a drift term, and \(g(t)\) controls the diffusion magnitude. The SDE produces a trajectory of continuously noisier variables \(\{x(t)\}_{t \in [0,T]}\).
+
+For DDPM Gaussian transition kernel \cref{eq:DDPM-transition-kernel}, the chain is equivalent to
+\begin{align*}
+    x_{i}=\sqrt{1-\beta_{i}}\,x_{i-1}+\sqrt{\beta_{i}}\,z_{i-1},\quad i=1,...,N,
+\end{align*}
+where \(z_{i-1}\sim \mathcal{N}\!\left(0,I\right)\). Define functions \(\beta\!\left(\frac{i}{N}\right)\coloneq N\beta_i\), \(x\!\left(\frac{i}{N}\right)=x_i\) and \(z\left(\frac{i}{N}\right)=z_i\), stepsize \(\Delta t\coloneq 1/N\) and finally reparameterise the time as \(t=i\Delta t\in\left\{0,\Delta t,...,N\Delta t=1\right\}\), we have
+\begin{align*}
+    x\!\left(t\right)
+    &=\sqrt{1-\beta\!\left(t\right)\Delta t}\,x\!\left(t-\Delta t\right)+\sqrt{\beta\!\left(t\right)\Delta t}\,z\left(t-\Delta t\right)\\
+    &\overset{\Delta t\ll 1}{\approx}\left(1-\frac{1}{2}\beta\!\left(t\right)\Delta t\right)x\!\left(t-\Delta t\right)+\sqrt{\beta\!\left(t\right)\Delta t}\,z\left(t-\Delta t\right),
+\end{align*}
+that is
+\begin{align*}
+    x\!\left(t\right)-x\!\left(t-\Delta t\right)=-\frac{1}{2}\beta\!\left(t\right)\Delta t x\!\left(t-\Delta t\right)+\sqrt{\beta\!\left(t\right)\Delta t}\,z\left(t-\Delta t\right).
+\end{align*}
+In the limit of \(\Delta t\to0\), the above equation converges to
+\begin{align}\label{eq:VPSDE}
+    dx=-\frac{1}{2}\beta\!\left(t\right)xdt+\sqrt{\beta\!\left(t\right)}dw.
+\end{align}
+\Cref{eq:VPSDE} is refered to as the Variance-preserving (VP) SDE, where \(\beta(t)\) is the noise schedule (e.g.~linear, cosine). Just like the discrete case of DDPM, VP SDE has a closed form solution. Define
+\begin{align*}
+    u\left(x\!\left(t\right),t\right)=\exp\left(\frac{1}{2}\int_0^t\beta\!\left(s\right)ds\right)x\!\left(t\right).
+\end{align*}
+Then by It\^{o}'s chain rule, \(y\left(t\right)\coloneq u\left(x\!\left(t\right),t\right)\) has the SDE
+\begin{align*}
+    dy
+    &=\frac{1}{2}\beta\!\left(t\right)\exp\left(\frac{1}{2}\int_0^t\beta\!\left(s\right)ds\right)x\!\left(t\right)dt+\exp\left(\frac{1}{2}\int_0^t\beta\!\left(s\right)ds\right)dx\\
+    &=\exp\left(\frac{1}{2}\int_0^t\beta\!\left(s\right)ds\right)\left(\frac{1}{2}\beta\!\left(t\right)x\!\left(t\right)dt-\frac{1}{2}\beta\!\left(t\right)x\!\left(t\right)dt+\sqrt{\beta\!\left(t\right)}dw\right)\\
+    &=\exp\left(\frac{1}{2}\int_0^t\beta\!\left(s\right)ds\right)\sqrt{\beta\!\left(t\right)}dw.
+\end{align*}
+Integrate from \(0\) to \(t\) yields
+\begin{align*}
+    y\!\left(t\right)=y\!\left(0\right)+\int_0^t\exp\left(\frac{1}{2}\int_0^s\beta\!\left(u\right)du\right)\sqrt{\beta\!\left(s\right)}dw_s.
+\end{align*}
+Now undo the change of variables we have
+\begin{align*}
+    x\!\left(t\right)
+    &=\left[\exp\left(\frac{1}{2}\int_0^t\beta\!\left(s\right)ds\right)\right]^{-1}y\!\left(t\right)\\
+    &=\exp\left(-\frac{1}{2}\int_0^t\beta\!\left(s\right)ds\right)x\!\left(0\right)+\int_0^t\exp\left(-\frac{1}{2}\int_s^t\beta\!\left(u\right)du\right)\sqrt{\beta\!\left(s\right)}dw_s.
+\end{align*}
+The initial condition \(x\!\left(0\right)=x_0\) is a sample from dataset, i.e.,~a constant, so the posterior of perturbation (or the prior of the reverse sampling) is a Gaussian distribution with mean
+\begin{align*}
+    \mathbb{E}\left[x\!\left(t\right)\mid x\!\left(0\right)=x_0\right]=\exp\left(-\frac{1}{2}\int_0^t\beta\!\left(s\right)ds\right)x\!\left(0\right)
+\end{align*}
+and variance
+\begin{align*}
+    \Var\left[x\!\left(t\right)\mid x\!\left(0\right)=x_0\right]
+    &=\int_0^t\exp\left(-\int_s^t\beta\!\left(u\right)du\right)\beta\!\left(s\right)ds I\\
+    &=\left(1-\exp\left(-\int_0^t\beta\!\left(s\right)ds\right)\right)I
+\end{align*}
+that is
+\begin{align*}
+    p\!\left(x_t|x_0\right)=\mathcal{N}\left(x_t:\:x_0e^{-\frac{1}{2}\int_0^t\beta(s)ds},\left(1-e^{-\int_0^t\beta(s)ds}\right)I\right).
+\end{align*}
+Obviously the variance is always bounded, hence the name variance-preserving. This continuous formulation provides a flexible mathematical foundation that unifies discrete DDPMs with stochastic differential equations, and it allows the use of stochastic calculus tools to analyse and manipulate diffusion models. In particular, it enables the derivation of the reverse-time SDE, which defines the generative process and will be introduced in the next section.
+
+Other choices of \(f\) and \(g\) in \cref{eq:forward_sde} yield different diffusion processes, \citet{song2021ScoreBasedGenerativeModeling} shown three categories,
 \begin{itemize}
     \item \textbf{Variance-preserving (VP) SDE}: maintains the marginal variance of \(x_t\) at one throughout the process.  
     \item \textbf{Variance-exploding (VE) SDE}: variance grows unbounded as \(t \to T\), pushing the distribution to white noise.  
     \item \textbf{Sub-variance-preserving (sub-VP) SDE}: an interpolation between VP and VE.  
 \end{itemize}
-\subsubsection{VP SDE}
-%TODO
-Use Variance Preserving (VP) SDE \cite{song2021ScoreBasedGenerativeModeling}
-\begin{align}\label{eq:VPSDE}
-    dx = -\frac{1}{2}\beta(t)\,x\,dt + \sqrt{\beta(t)}\,dW_t,
-\end{align}
-where \(\beta(t)\) is a noise schedule (e.g.~linear, cosine), with closed form posterior
-\begin{align*}
-    p\left(x_t|x_0\right)=\mathcal{N}\left(x_t:\:x_0e^{-\frac{1}{2}\int_0^t\beta(s)ds},\left(1-e^{-\int_0^t\beta(s)ds}\right)I\right)
-\end{align*}
-for data perturbation, i.e.,
-\begin{align}\label{eq:perturbation_ddpm}
-    x_t=\sqrt{e^{-\int_0^t\beta(s)ds}}x_0+\sqrt{1-e^{-\int_0^t\beta(s)ds}}z_t,\quad z_t\sim\mathcal{N}\left(0, I\right).
-\end{align}
-Notice that \cref{eq:perturbation_ddpm} is exactly the discrete perturbation scheme in DDPM \cite{hoDenoisingDiffusionProbabilistic2020}.
+We will focus on VP SDE in this dissertation.
 
-This continuous formulation provides a flexible mathematical foundation that unifies discrete DDPMs with stochastic differential equations, and it allows the use of stochastic calculus tools to analyse and manipulate diffusion models. 
-In particular, it enables the derivation of the reverse-time SDE, which defines the generative process and will be introduced in the next section.
+\subsection{Reverse-Time Diffusion Processes}
+The forward diffusion process, whether in discrete or continuous form, progressively perturbs data until its distribution approaches a simple prior such as an isotropic Gaussian. To perform generative modelling, we require a process that inverts this corruption: starting from noise and evolving back toward the data distribution. This is formalised through the theory of time-reversal for diffusion processes.
 
-\subsection{Reverse-Time SDE}
-The forward diffusion process, whether in discrete or continuous form, progressively perturbs data until its distribution approaches a simple prior such as an isotropic Gaussian. 
-To perform generative modelling, we require a process that inverts this corruption: starting from noise and evolving back toward the data distribution. 
-This is formalised through the theory of time-reversal for diffusion processes.
-\subsection{Discrete-Time Reverse Process}
+\subsubsection{Discrete-Time Reverse Process}
 In the discrete DDPM formulation~\cite{hoDenoisingDiffusionProbabilistic2020}, the generative model is defined as a reverse Markov chain
 \begin{align*}
-    p_\theta\left(x_{0:T}\right) = p(x_T) \prod_{t=1}^{T} p_\theta(x_{t-1} \mid x_t),
+    p_\theta\left(x_{0:N}\right) \coloneq p(x_N) \prod_{i=1}^{N} p_\theta(x_{i-1} \mid x_i),
 \end{align*}
-with \(p(x_T) = \mathcal{N}(x_T;0,I)\) as the prior. The reverse conditionals are modelled as Gaussians
+with \(p(x_N) = \mathcal{N}(x_N;0,I)\) as the prior. The reverse conditionals are modelled as Gaussians
 \begin{align*}
-    p_\theta\left(x_{t-1} \mid x_t\right) = \mathcal{N}\!\big(x_{t-1}; \mu_\theta(x_t,t), \Sigma_\theta(x_t,t)\big),
+    p_\theta\left(x_{i-1} \mid x_t\right) \coloneq \mathcal{N}\!\big(x_{i-1}; \mu_\theta(x_i,i), \Sigma_\theta(x_i,i)\big),
 \end{align*}
-where \(\mu_\theta\) and \(\Sigma_\theta\) are learned using a neural network. Training then consists of minimising the Kullback-Leibler divergence between the true posterior \(q(x_{t-1} \mid x_t, x_0)\) and the model distribution \(p_\theta(x_{t-1} \mid x_t)\). This can be shown to reduce to a simple denoising score matching objective, where the network predicts the noise that was added at each step.
+where \(\mu_\theta\) and \(\Sigma_\theta\) are learned using a neural network with parameter \(\theta\). Training then consists of minimising the Kullback-Leibler divergence between the true posterior \(q(x_{i-1} \mid x_i, x_0)\) and the model distribution \(p_\theta(x_{i-1} \mid x_i)\).
 
 \subsubsection{Continuous-Time Reverse SDE}
-In the continuous-time setting, Anderson~\cite{andersonReversetimeDiffusionEquation1982} established that the time reversal of an It\^{o} SDE \eqref{eq:forward_sde}
-is itself an SDE with modified drift:
+In the continuous-time setting, \citet{andersonReversetimeDiffusionEquation1982} established that the time reversal of an It\^{o} SDE \eqref{eq:forward_sde}
+is itself an SDE with modified drift term,
 \begin{align}\label{eq:reverse_sde}
-    dx = \left[f(x,t) - g(t)^2 \nabla_x \log p_t(x)\right]\,dt + g(t)\,d\bar W_t,
+    dx = \left[f(x,t) - g^2(t) \nabla_x \log p_t(x)\right]\,dt + g(t)\,d\bar w,
 \end{align}
-where \(\bar W_t\) is the Brownian motion running backward in time. This equation defines the reverse-time SDE. It depends explicitly on the score function \(\nabla_x \log p_t(x)\) of the forward process marginal distribution \(p_t(x)\). Thus, if one can estimate the score function accurately for all times \(t\), it becomes possible to simulate the reverse SDE and generate samples from the data distribution.
+where \(\bar w\) is the Brownian motion running backward in time, \(\nabla_x \log p_t(x)\) is the score function at time \(t\), that is, the gradient of the log-density of the perturbed, marginal, data distribution \(p_t\left(x\right)\). This equation defines the reverse-time SDE. It depends explicitly on the score function \(\nabla_x \log p_t(x)\) of the forward process marginal distribution \(p_t(x)\).
 
-\subsubsection{Implications for Generative Modelling}
+For VP SDE \cref{eq:VPSDE}, the reverse-time SDE is given by
+\begin{align*}
+    dx=\left[-\frac{1}{2}\beta\!\left(t\right)x-\beta\!\left(t\right)\nabla_x \log p_t(x)\right]dt+\sqrt{\beta\!\left(t\right)}d\bar w.
+\end{align*}
+Though it has no closed form sulution, if one can estimate the score function accurately for all times \(t\), it becomes possible to simulate the reverse SDE and generate samples from the data distribution.
+
 This result provides the key insight underlying score-based diffusion: generative modelling reduces to score estimation. 
-Rather than directly modelling likelihoods or sampling distributions, we train a neural network \(s_\theta(x,t)\) to approximate the score \(\nabla_x \log p_t(x)\). The network is then used to guide the drift of the reverse SDE, producing realistic samples when integrated from Gaussian noise at \(t = T\) back to \(t = 0\).
+Rather than directly modelling likelihoods or sampling distributions, we train a neural network \(s_\theta(x,t)\) to approximate the score \(\nabla_x \log p_t(x)\). The network is then used to guide the drift of the reverse SDE, producing realistic samples when integrated from Gaussian noise at \(t = 1\) back to \(t = 0\).
 
 \subsection{Score Matching and Training Objective}
 The reverse-time SDE depends on the score function \(\nabla_x \log p_t(x)\), which is generally intractable. Thus, the central learning problem in score-based diffusion is to approximate this score with a neural network \(s_\theta(x,t)\). Training requires a loss function that encourages \(s_\theta\) to match the true score across noise levels.

@@ -211,19 +211,21 @@ Now undo the change of variables we have
     &=\exp\left(-\frac{1}{2}\int_0^t\beta\!\left(s\right)ds\right)x\!\left(0\right)+\int_0^t\exp\left(-\frac{1}{2}\int_s^t\beta\!\left(u\right)du\right)\sqrt{\beta\!\left(s\right)}dw_s.
 \end{align*}
 The initial condition \(x\!\left(0\right)=x_0\) is a sample from dataset, i.e.,~a constant, so the posterior of perturbation (or the prior of the reverse sampling) is a Gaussian distribution with mean
-\begin{align*}
-    \mathbb{E}\left[x\!\left(t\right)\mid x\!\left(0\right)=x_0\right]=\exp\left(-\frac{1}{2}\int_0^t\beta\!\left(s\right)ds\right)x\!\left(0\right)
-\end{align*}
+\begin{align}\label{eq:VPSDE-solution-mean}
+    \mathbb{E}\left[x\!\left(t\right)\mid x\!\left(0\right)=x_0\right]=\exp\left(-\frac{1}{2}\int_0^t\beta\!\left(s\right)ds\right)x_0
+\end{align}
 and variance
-\begin{align*}
+\begin{align}
+    \nonumber
     \Var\left[x\!\left(t\right)\mid x\!\left(0\right)=x_0\right]
     &=\int_0^t\exp\left(-\int_s^t\beta\!\left(u\right)du\right)\beta\!\left(s\right)ds I\\
+    \label{eq:VPSDE-solution-variance}
     &=\left(1-\exp\left(-\int_0^t\beta\!\left(s\right)ds\right)\right)I
-\end{align*}
+\end{align}
 that is
-\begin{align*}
+\begin{align}\label{eq:VPSDE-solution}
     p\!\left(x_t|x_0\right)=\mathcal{N}\left(x_t:\:x_0e^{-\frac{1}{2}\int_0^t\beta(s)ds},\left(1-e^{-\int_0^t\beta(s)ds}\right)I\right).
-\end{align*}
+\end{align}
 Obviously the variance is always bounded, hence the name variance-preserving. This continuous formulation provides a flexible mathematical foundation that unifies discrete DDPMs with stochastic differential equations, and it allows the use of stochastic calculus tools to analyse and manipulate diffusion models. In particular, it enables the derivation of the reverse-time SDE, which defines the generative process and will be introduced in the next section.
 
 Other choices of \(f\) and \(g\) in \cref{eq:forward_sde} yield different diffusion processes, \citet{song2021ScoreBasedGenerativeModeling} shown three categories,
@@ -266,10 +268,10 @@ This result provides the key insight underlying score-based diffusion: generativ
 Rather than directly modelling likelihoods or sampling distributions, we train a neural network \(s_\theta(x,t)\) to approximate the score \(\nabla_x \log p_t(x)\). The network is then used to guide the drift of the reverse SDE, producing realistic samples when integrated from Gaussian noise at \(t = 1\) back to \(t = 0\).
 
 \subsection{Score Matching and Training Objective}
-The reverse-time SDE depends on the score function \(\nabla_x \log p_t(x)\), which is generally intractable. Thus, the central learning problem in score-based diffusion is to approximate this score with a neural network \(s_\theta(x,t)\). Training requires a loss function that encourages \(s_\theta\) to match the true score across noise levels.
+The reverse-time SDE depends on the score function \(\nabla_x \log p_t(x)\), which is generally intractable. Thus, the central learning problem in score-based diffusion is to approximate this score with a neural network \(s_\theta(x,t)\), called time dependent score network (TDSN) \citep{song2021ScoreBasedGenerativeModeling}. Training requires a loss function that encourages \(s_\theta\) to match the true score across noise levels.
 
-\subsubsection{Denoising Score Matching}
-For each time \(t\), the score function of \(x_t\) can be trained via
+\subsubsection{Score Matching and Denoising Score Matching}
+For each time \(t\), the score function of \(x_t\) can be trained via minimising the Fisher divergence
 \begin{align*}
     \mathbb{E}_{p\left(x_t\right)}\left[\norm{\nabla_{x_t}\log p\left(x_t\right)-s_{\theta}\left(x_t, t\right)}_2^2\right].
 \end{align*}
@@ -277,28 +279,20 @@ The unknown term \(\nabla_{x_t}\log p\left(x_t\right)\) (true score) can be elim
 \begin{align*}
     J^{\text{SM}}_t(\theta)=\mathbb{E}_{p\left(x_t\right)}\left[\norm{\tr\left(\nabla_{x_t}s_{\theta}\left(x_t,t\right)\right)-\frac{1}{2}\norm{s_{\theta}(x_t,t)}_2^2}_2^2\right].
 \end{align*}
-Hyv\"arinen~\cite{hyvarinenEstimationNonNormalizedStatistical2005} introduced score matching as a method to estimate unnormalised density models. 
-Directly minimising the Fisher divergence between the model score and the data score avoids the need to compute the partition function. However, applying this to diffusion models requires extending the idea to noisy samples.
-
-Note that the term \(\tr\left(\nabla_{x_t}s_{\theta}\left(x_t,t\right)\right)\) can be computationally intensive, since we have the analytic form of the posterior, this can be eased by using instead the denoising score matching objective \cite{vincentConnectionScoreMatching2011}
+Note that the term \(\tr\left(\nabla_{x_t}s_{\theta}\left(x_t,t\right)\right)\) can be computationally intensive. \citet{vincentConnectionScoreMatching2011} showed that training a denoising autoencoder to reconstruct clean data from corrupted observations is equivalent to score matching under certain conditions. This connection underpins the training of diffusion models: the neural network is trained to denoise \(x_t\) into \(x_0\), thereby learning the score function implicitly. Hence, in the case of VP SDE, since we have the analytic form of the posterior, \cref{eq:VPSDE-solution}, the denoising score matching objective is given by
 \begin{align*}
-    J^{\text{DSM}}_t=\mathbb{E}_{p\left(x_0\right)}\mathbb{E}_{p\left(x_t|x_0\right)}\left[\norm{s_{\theta}\left(x_t,t\right)-\nabla_{x_t}\log p\left(x_t|x_0\right)}_2^2\right].
+    J^{\text{DSM}}_t
+    &=\mathbb{E}_{x_0\sim p_{\text{data}}\left(x_0\right)}\mathbb{E}_{x_t\sim p\left(x_t|x_0\right)}\left[\norm{s_{\theta}\left(x_t,t\right)-\nabla_{x_t}\log p\left(x_t|x_0\right)}_2^2\right]\\
+    &=\mathbb{E}_{x_0\sim p_{\text{data}}\left(x_0\right)}\mathbb{E}_{x_t\sim p\left(x_t|x_0\right)}\left[\norm{s_{\theta}\left(x_t,t\right)+\frac{x_t-\mu_{t}}{\sigma_t^2}}_2^2\right]
 \end{align*}
-Vincent~\cite{vincentConnectionScoreMatching2011} showed that training a denoising autoencoder to reconstruct clean data from corrupted observations is equivalent to score matching under certain conditions. This connection underpins the training of diffusion models: the neural network is trained to denoise \(x_t\) into \(x_0\), thereby learning the score function implicitly.
+where \(\mu_t\) and \(\sigma_t^2\) are given by \cref{eq:VPSDE-solution-mean,eq:VPSDE-solution-variance}, respectively.
 
-\subsubsection{Objective in Continuous-Time Diffusion}%TODO: NCSN, TDSN
-The overall objective is given by a weighted sum (or average)
+The denoising score matching objective \(J^{\text{DSM}}_t\) is for a specific time \(t\). To train the score model across all time \(t\in\left[0,1\right]\) in one go, the overall objective is given by a weighted sum (or average) \citep{song2021ScoreBasedGenerativeModeling}
 \begin{align*}
-    J^{\text{DSM}}=\mathbb{E}_{t\sim\mathcal{U}(0,1)}\left[\lambda\left(t\right)J^{\text{DSM}}_t\right].
+    J^{\text{DSM}}=\mathbb{E}_{t\sim\mathcal{U}(0,1)}\left[\lambda\!\left(t\right)J^{\text{DSM}}_t\right],
 \end{align*}
+where \(\lambda\!\left(t\right)\) is a positive weighting function.
 
-Song et al.~\cite{song2021ScoreBasedGenerativeModeling} formulated the training objective for continuous SDEs as a weighted denoising score matching loss:
-\begin{align*}
-    \mathcal{L}(\theta) = \mathbb{E}_{t \sim \mathcal{U}(0,1)} \, \mathbb{E}_{x_0 \sim p_{\text{data}}} \, \mathbb{E}_{x_t \sim q(x_t \mid x_0)} \Big[ \lambda(t) \, \| s_\theta(x_t, t) - \nabla_x \log q(x_t \mid x_0) \|^2 \Big],
-\end{align*}
-where \(q(x_t \mid x_0)\) denotes the forward diffusion distribution, and \(\lambda(t)\) is a time-dependent weighting function. The target score \(\nabla_x \log q(x_t \mid x_0)\) has a closed form under the Gaussian forward process, enabling efficient training. 
-
-\subsubsection{Summary}
 The learning problem for score-based diffusion therefore reduces to denoising score matching: the neural network \(s_\theta(x,t)\) is trained to approximate \(\nabla_x \log p_t(x)\) across different noise levels. Once trained, this network can be used to drive the reverse SDE, enabling generation of new samples from Gaussian noise.
 
 \subsection{Sampling Procedures}

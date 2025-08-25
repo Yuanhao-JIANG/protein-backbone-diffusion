@@ -176,6 +176,36 @@
 }
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Introduction to Protein Structures
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+@book{creighton1993proteins,
+  title={Proteins: structures and molecular properties},
+  author={Creighton, Thomas E},
+  year={1993},
+  publisher={Macmillan}
+}
+
+@book{branden2012IntroductionProteinStructure,
+  title = {Introduction to {{Protein Structure}}},
+  author = {Branden, Carl Ivar and Tooze, John},
+  year = {2012},
+  month = mar,
+  edition = {2},
+  publisher = {Garland Science},
+  address = {New York},
+  doi = {10.1201/9781136969898},
+  abstract = {The VitalBook e-book of Introduction to Protein Structure, Second Edition is inly available in the US and Canada at the present time. To purchase or rent please visit https://store.vitalsource.com/show/9780815323051Introduction to Protein Structure provides an account of the principles of protein structure, with examples of key proteins in their bio},
+  isbn = {978-0-429-06209-4}
+}
+
+@book{alberts2015essential,
+  title={Essential cell biology},
+  author={Alberts, Bruce and Bray, Dennis and Hopkin, Karen and Johnson, Alexander D and Lewis, Julian and Raff, Martin and Roberts, Keith and Walter, Peter},
+  year={2015},
+  publisher={Garland Science}
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Protein Generation with Diffusion
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 @article{jumper2021HighlyAccurateProtein,
@@ -250,6 +280,42 @@
   copyright = {{\copyright} 2024 The Authors. WIREs Computational Molecular Science published by Wiley Periodicals LLC.},
   langid = {english},
   keywords = {diffusion models,docking,generative models,proteins}
+}
+
+@article{senior2020ImprovedProteinStructure,
+  title = {Improved Protein Structure Prediction Using Potentials from Deep Learning},
+  author = {Senior, Andrew W. and Evans, Richard and Jumper, John and Kirkpatrick, James and Sifre, Laurent and Green, Tim and Qin, Chongli and {\v Z}{\'i}dek, Augustin and Nelson, Alexander W. R. and Bridgland, Alex and Penedones, Hugo and Petersen, Stig and Simonyan, Karen and Crossan, Steve and Kohli, Pushmeet and Jones, David T. and Silver, David and Kavukcuoglu, Koray and Hassabis, Demis},
+  year = {2020},
+  month = jan,
+  journal = {Nature},
+  volume = {577},
+  number = {7792},
+  pages = {706--710},
+  publisher = {Nature Publishing Group},
+  issn = {1476-4687},
+  doi = {10.1038/s41586-019-1923-7},
+  urldate = {2025-08-25},
+  abstract = {Protein structure prediction can be used to determine the three-dimensional shape of a protein from its amino acid sequence1. This problem is of fundamental importance as the structure of a protein largely determines its function2; however, protein structures can be difficult to determine experimentally. Considerable progress has recently been made by leveraging genetic information. It is possible to infer which amino acid residues are in contact by analysing covariation in homologous sequences, which aids in the prediction of protein structures3. Here we show that we can train a neural network to make accurate predictions of the distances between pairs of residues, which convey more information about the structure than contact predictions. Using this information, we construct a potential of mean force4 that can accurately describe the shape of a protein. We find that the resulting potential can be optimized by a simple gradient descent algorithm to generate structures without complex sampling procedures. The resulting system, named AlphaFold, achieves high accuracy, even for sequences with fewer homologous sequences. In the recent Critical Assessment of Protein Structure Prediction5 (CASP13)---a blind assessment of the state of the field---AlphaFold created high-accuracy structures (with template modelling (TM) scores6 of 0.7 or higher) for 24 out of 43 free modelling domains, whereas the next best method, which used sampling and contact information, achieved such accuracy for only 14 out of 43 domains. AlphaFold represents a considerable advance in protein-structure prediction. We expect this increased accuracy to enable insights into the function and malfunction of proteins, especially in cases for which no structures for homologous proteins have been experimentally determined7.},
+  copyright = {2020 The Author(s), under exclusive licence to Springer Nature Limited},
+  langid = {english},
+  keywords = {Machine learning,Protein structure predictions}
+}
+
+% TMalign
+@article{zhang2005TMalignProteinStructure,
+  title = {{{TM-align}}: A Protein Structure Alignment Algorithm Based on the {{TM-score}}},
+  shorttitle = {{{TM-align}}},
+  author = {Zhang, Yang and Skolnick, Jeffrey},
+  year = {2005},
+  month = apr,
+  journal = {Nucleic Acids Research},
+  volume = {33},
+  number = {7},
+  pages = {2302--2309},
+  issn = {0305-1048},
+  doi = {10.1093/nar/gki524},
+  urldate = {2025-08-25},
+  abstract = {We have developed TM-align, a new algorithm to identify the best structural alignment between protein pairs that combines the TM-score rotation matrix and Dynamic Programming (DP). The algorithm is {$\sim$}4 times faster than CE and 20 times faster than DALI and SAL. On average, the resulting structure alignments have higher accuracy and coverage than those provided by these most often-used methods. TM-align is applied to an all-against-all structure comparison of 10\,515 representative protein chains from the Protein Data Bank (PDB) with a sequence identity cutoff \&lt;95\%: 1996 distinct folds are found when a TM-score threshold of 0.5 is used. We also use TM-align to match the models predicted by TASSER for solved non-homologous proteins in PDB. For both folded and misfolded models, TM-align can almost always find close structural analogs, with an average root mean square deviation, RMSD, of 3 {\AA} and 87\% alignment coverage. Nevertheless, there exists a significant correlation between the correctness of the predicted structure and the structural similarity of the model to the other proteins in the PDB. This correlation could be used to assist in model selection in blind protein structure predictions. The TM-align program is freely downloadable at http://bioinformatics.buffalo.edu/TM-align .}
 }
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -6,10 +6,12 @@
 }
 \usepackage{natbib}
 \usepackage{newtxtext,newtxmath} % modern, Times-like + proper math. Or \usepackage{lmodern}
-\usepackage{zi4} % provides the Inconsolata monospaced font, but in a LaTeX-ready form
+\usepackage{newtxtt} % monospaced font
+% \usepackage{zi4} % provides the Inconsolata monospaced font, but in a LaTeX-ready form
 \usepackage[raggedright]{titlesec} % in case for long titles
 \usepackage[breaklinks]{hyperref} % allow breaklines for references
 \usepackage{cleveref} % load after hyperref package
+\usepackage{minted} % for pretty code appendix
 \usepackage[a4paper,left=3cm,right=3cm,top=3cm,bottom=3cm]{geometry}
 \raggedbottom % don't force equal height pages. Or \flushbottom to make make pages equal height
 \allowdisplaybreaks % allow page breaks inside equations 
@@ -359,7 +361,6 @@ It follows that
 \end{align}
 Instead of linear growth, the cosine schedule ensures a smoother increase in noise variance, the noising strength changes much slower near \(i=1\) and \(i=N\), as illustrated by \cref{fig:schedule-linear-vs-cosine}. This schedule maintains higher signal levels for longer, enabling the score network to learn more effectively across a wider range of noise intensities.
 
-%TODO
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=\linewidth]{linear_vs_cosine.png}
@@ -379,45 +380,59 @@ Together, these elements provide a principled probabilistic framework for deep g
 \clearpage
 
 \section{Protein Structure Modelling with Graph Neural Networks}\label{sec:protein-gnn}
-\subsection{Proteins and Structural Constraints}\label{subsec:proteins-constraints}
-Proteins are linear polymers of amino acids that fold into three-dimensional structures. Their backbone is a repeating chain of atoms N-C\(_\alpha\)-C, with side chains branching from C\(_\alpha\). In this work we adopt a C\(_\alpha\)-only representation: each residue \(i \in \{1,\dots,L\}\) is associated with a 3D coordinate \(x_i \in \mathbb{R}^3\). This representation is widely used for coarse-grained modelling because it captures the global geometry of the fold while keeping the state space compact.
+\subsection{Protein Structure and Motivation}\label{subsec:protein-structure}
+Proteins are built from amino acids, small organic molecules that share a common structure: a central alpha carbon (C\(_\alpha\)) bonded to an amino group, a carboxyl group, a hydrogen atom, and a variable side chain. Amino acids are joined linearly by peptide bonds, which link the amino group of one amino acid to the carboxyl group of the next, forming a polypeptide chain. The sequence of amino acids in this chain defines the primary structure of a protein, while the chemistry of their side chains drives folding into higher-order structures \citep{creighton1993proteins,branden2012IntroductionProteinStructure}. Understanding and modelling protein structures is a central challenge in computational biology because structure underlies stability, dynamics, and molecular interactions.
 
-Even at this coarse level, protein geometry is far from arbitrary. Neighbouring C\(_\alpha\) atoms exhibit a characteristic virtual bond length
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.4\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{amino_acid.png}
+        \caption{Amino acid}
+        \label{fig:amino_acid}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.75\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{polypeptide_chain.png}
+        \caption{Polypeptide chain}
+        \label{fig:polypeptide_chain}
+    \end{subfigure}
+    \caption{Schematic diagram of an amino acid and polypeptide chain from \citet{branden2012IntroductionProteinStructure}. In this dissertation, we are interested only in the backbone formed by C\(_\alpha\) atoms.}
+\end{figure}
+
+Because the C\(_\alpha\) atoms define the backbone geometry of the chain, they provide a natural coarse-grained representation for structural modelling. In this work we adopt a C\(_\alpha\)-only representation: for a protein (chain of amino acid) \(x\) of length \(L\), each amino acid \(i \in \{1,\dots,L\}\) is associated with a 3D coordinate \(x^i \in \mathbb{R}^3\), so \(x\in\mathbb{R}^{L\times3}\). This coarse-grained representation is widely used in structural modelling because it captures global fold geometry and secondary structure while keeping the state space compact, making it well-suited to generative modelling \citep{watsonNovoDesignProtein2023,zhang2005TMalignProteinStructure,senior2020ImprovedProteinStructure}.
+
+Even at this simplified level, protein geometry is far from arbitrary. The distance between successive C\(_\alpha\) atoms is consistently about
 \begin{align*}
-    d_i \;=\; \|x_i - x_{i-1}\| \approx 3.8~\text{\AA},
+    \|x^i - x^{i-1}\| \approx 3.8~\text{\AA}.
 \end{align*}
-and local shape can be described by the virtual bond angle
-\begin{align*}
-    \theta_i \;=\; \angle(x_{i-1}, x_i, x_{i+1}),
-\end{align*}
-and the virtual dihedral
-\begin{align*}
-    \tau_i \;=\; \mathrm{dihedral}(x_{i-2}, x_{i-1}, x_i, x_{i+1}),
-\end{align*}
-whose empirical distributions are constrained by backbone sterics and peptide planarity. 
-Beyond local geometry, valid structures avoid steric clashes (no two non-neighbour residues at unrealistically short distances) and typically exhibit compact, physically plausible folds. 
+Local backbone conformation can be described by the angle formed by three consecutive C\(_\alpha\) atoms, \(\angle(x^{i-1}, x^i, x^{i+1})\), and by the dihedral angle defined by four consecutive C\(_\alpha\) atoms, \(\mathrm{dihedral}(x^{i-2}, x^{i-1}, x^i, x^{i+1})\). The empirically observed distributions of these geometric quantities are restricted by steric hindrance and the planarity of the peptide bond. Beyond these local constraints, valid structures must also avoid steric clashes, where non-adjacent amino acids are placed unrealistically close in space, and they typically fold into compact, physically plausible conformations \citep{creighton1993proteins,branden2012IntroductionProteinStructure}.
+
+These intricate three-dimensional dependencies make protein backbones fundamentally different from unstructured data such as images or text. 
+Consequently, generative models for proteins must account for spatial and structural constraints explicitly, motivating the use of geometry-aware representations and neural architectures.
 
 \paragraph{Scope of this work.}
-Our goal is backbone-level generative modelling using score-based diffusion. We do not impose hard geometric constraints during training or sampling (e.g.\ fixed bond lengths/angles); instead, we learn the distribution over C\(_\alpha\) coordinate trajectories and evaluate fidelity against native backbones. Section~\ref{sec:Experiments} reports RMSD/TM results and discusses the limitation that high RMSD/low TM can still correspond to physically valid but non-native folds.
-
-\paragraph{Paired evaluation vs.\ unconditional validity.}
-Because each generated backbone is compared to its specific native target of the same length \(L\), RMSD/TM measure reconstruction fidelity, not absolute physical validity. 
-This is appropriate for our benchmarking setting (paired evaluation), but one should interpret low TM or high RMSD with caution: a sample can be a plausible alternative fold while scoring poorly against the chosen native reference.
+Our goal is backbone-level generative modelling using score-based diffusion. 
+We do not impose hard geometric constraints during training or sampling (e.g.\ fixed bond lengths or bond angles); instead, we learn the distribution over C\(_\alpha\) coordinate trajectories and evaluate fidelity against native backbones. 
+Section~\ref{sec:Experiments} reports RMSD/TM results and discusses the limitation that high RMSD or low TM can still correspond to physically valid but non-native folds.
 
 \subsection{Graph Representation of Backbones}\label{subsec:graph-repr}
-% Nodes: residues (Cα coordinates); Edges: radius graph (and optional sequence edges);
-% Edge features: radial basis of distances, unit direction, diffusion-time embedding; Node features: optional positional embedding (residue index).
-A protein backbone of length \(L\) is represented as a graph \(G=(V,E)\), where each residue corresponds to a node and edges capture both geometric proximity and sequential connectivity. This formulation enables the use of graph neural networks as score models, allowing information to be propagated through local neighbourhoods while respecting the spatial structure of the backbone. 
+A protein backbone  of length \(L\) is represented as a graph \(G=(V,E)\), where each amino acid (or its corresponding C\(_\alpha\) atoms) corresponds to a node and edges capture both geometric proximity and sequential connectivity. This formulation enables the use of graph neural networks as score models, allowing information to be propagated through local neighbourhoods while respecting the spatial structure of the backbone. 
 
 \paragraph{Nodes.}
-Each node \(i \in V\) corresponds to a residue with coordinate \(x_i \in \mathbb{R}^3\) representing the position of its C\(_\alpha\) atom. For simplicity, we do not include residue type or side-chain information in this work, focusing purely on the geometry of the backbone. The node features are initialised as positional embeddings derived from the residue index (Section~\ref{subsec:architectures}), along with optional time-conditioning features from the diffusion process.
+Each node \(i \in V\) corresponds to a amino acid with coordinate \(x^i \in \mathbb{R}^3\) representing the position of its C\(_\alpha\) atom. For simplicity, we do not include amino acid type or side-chain information in this work, focusing purely on the geometry of the C\(_\alpha\) atoms backbone. In addition to the coordinates, extra node features are initialised as positional embeddings derived from the amino acid index, along with time-conditioning features from the diffusion process. See \cref{subsec:architectures}.
+% TODO: Detail Similar as:
+% The full edge feature vector is then obtained by concatenation:
+% \begin{align*}
+%     h_{ij} = \big[ \; \text{radial basis} \;\|\; \text{direction} \;\|\; \text{time embedding} \;\big].
+% \end{align*}
 
 \paragraph{Edges.}
 Edges are constructed using a radius graph: for each node \(i\), we connect edges to all neighbours \(j\) within a cutoff distance \(r\), subject to a maximum of \(k\) nearest neighbours. Formally,
 \begin{align*}
     (i,j) \in E \quad \Leftrightarrow \quad \|x_i - x_j\| \leq r \quad \text{and } j \text{ is among the } k \text{ closest to } i.
 \end{align*}
-This design ensures that local spatial relationships are captured without requiring a fixed sequence length. In addition to geometric edges, self-loops are included to stabilise message passing and allow each node to retain its own features. Edges are directed: for each \((i,j) \in E\), messages are passed from \(i\) (source) to \(j\) (target). This convention is consistent with the implementation of \texttt{TransformerConv} in PyTorch Geometric, and we do not duplicate edges to create an undirected graph.
+This design ensures that local spatial relationships are captured without requiring a fixed sequence length. In addition to geometric edges, self-loops are included to stabilise message passing and allow each node to retain its own features. Edges are directed: for each \((i,j) \in E\), messages are passed from \(j\) (target) to \(i\) (source). This convention is consistent with the implementation in PyTorch Geometric, and we do not duplicate edges to create an undirected graph.
 
 \paragraph{Edge features.}
 For each edge \((i,j) \in E\), we compute a feature vector combining geometric and diffusion-time information:
@@ -570,6 +585,10 @@ We evaluate reconstruction fidelity using two standard structural similarity mea
     \item \textbf{TM-score:} a length-normalised measure of structural similarity ranging from \(0\) to \(1\), with higher values indicating better alignment. Unlike RMSD, TM-score is less sensitive to local errors and more reflective of global fold similarity.
 \end{itemize}
 
+\paragraph{Paired evaluation vs.\ unconditional validity.}
+Because each generated backbone is compared to its specific native target of the same length \(L\), RMSD and TM-score measure reconstruction fidelity, not absolute physical validity. 
+This is appropriate for our benchmarking setting (paired evaluation), but one should interpret low TM or high RMSD with caution: a generated backbone may still represent a plausible alternative fold while scoring poorly against the chosen reference.
+
 We also report the raw training error (MSE between predicted and true noise) as an auxiliary metric.
 
 \subsection{Quantitative Results}\label{subsec:results}
@@ -691,10 +710,150 @@ Overall, this work illustrates the potential of diffusion generative models for 
 
 \clearpage
 
-\section*{Appendix}
-\begin{verbatim}
-Put your R code here.
-\end{verbatim}
+% \section*{Appendix}
+\appendix
+\section{Code Appendix}
+% This appendix provides excerpts from the implementation of the graph neural network (GNN) model described in the main text. The code is written in Python and makes use of standard machine learning libraries, including PyTorch and PyTorch Geometric (PyG). For readability, only the core components of the model are shown here. The complete source code used in this dissertation, including data preprocessing, training scripts, and evaluation utilities, is available in the accompanying GitHub repository: \url{https://github.com/Yuanhao-JIANG}. %TODO: link here
+% \begin{minted}[linenos,breaklines,breaksymbolleft={},breaksymbolright={},frame=single,framesep=2mm,baselinestretch=1.05,]{python}
+% class GraphTransformerScoreModel(nn.Module):
+%     def __init__(self, hidden_dim=128, pos_embed_dim=128, t_embed_dim=128, t_edge_proj_dim=16, num_layers=5, heads=8, max_num_neighbors=500, radius=5, num_basis=32):
+%         super().__init__()
+%         self.max_num_neighbors = max_num_neighbors
+%         self.radius = radius
+%         self.num_basis = num_basis
+%         self.heads = heads
+
+%         # position embedding
+%         self.pos_embed = nn.Sequential(
+%             SinusoidalEncoding(embed_dim=pos_embed_dim),
+%             nn.Linear(pos_embed_dim, pos_embed_dim)
+%         )
+
+%         # position MLPs per layer
+%         self.pos_mlps = nn.ModuleList([
+%             nn.Linear(pos_embed_dim, pos_embed_dim) for _ in range(num_layers)
+%         ])
+
+%         # Time embedding
+%         self.t_embed = nn.Sequential(
+%             GaussianFourierProjection(t_embed_dim, scale=16.),
+%             nn.Linear(t_embed_dim, t_embed_dim),
+%         )
+
+%         self.t_edge_proj = nn.Linear(t_embed_dim, t_edge_proj_dim)
+
+%         # Time MLPs per layer
+%         self.t_mlps = nn.ModuleList([
+%             nn.Linear(t_embed_dim, t_embed_dim) for _ in range(num_layers)
+%         ])
+
+%         # TransformerConv layers
+%         in_channels = hidden_dim + pos_embed_dim + t_embed_dim
+%         self.convs = nn.ModuleList([
+%             TransformerConv(
+%                 in_channels=in_channels,
+%                 out_channels=hidden_dim // heads,
+%                 heads=heads,
+%                 concat=True,
+%                 beta=True,
+%                 edge_dim=self.num_basis + 3 + t_edge_proj_dim
+%             )
+%             for _ in range(num_layers)
+%         ])
+
+%         # Norm layers
+%         self.norms = nn.ModuleList([
+%             GraphNorm(hidden_dim) for _ in range(num_layers)
+%         ])
+
+%         # Input/output projection
+%         self.input_proj = nn.Linear(3, hidden_dim)
+%         self.output_proj = nn.Sequential(
+%             nn.Linear(hidden_dim, hidden_dim),
+%             nn.SiLU(),
+%             nn.Linear(hidden_dim, 3)
+%         )
+
+%         self.act = nn.SiLU()
+
+%     def forward(self, coords, batch, t):
+%         """
+%         Args:
+%             coords: [N, 3] - all coordinates in batch
+%             batch: [N] - batch index for each node
+%             t: [B] - time for each structure
+%         """
+%         # Positional encoding (based on position index in the chain)
+%         num_graphs = batch.max().item() + 1
+%         pos_index = torch.empty_like(batch, dtype=torch.float)
+%         for i in range(num_graphs):
+%             mask = (batch == i)
+%             count = mask.sum()
+%             pos_index[mask] = torch.linspace(0, 1, steps=count, device=coords.device)
+%         pos_feat = self.act(self.pos_embed(pos_index[:, None]))  # [N, pos_embed_dim]
+
+%         # Time embedding
+%         t_feat = self.act(self.t_embed(t[:, None]))  # [B, t_embed_dim]
+
+%         # Node features
+%         h = self.input_proj(coords)  # [N, hidden_dim]
+
+%         # Build radius graph to get the edge index
+%         edge_index = radius_graph(coords, r=self.radius, batch=batch, max_num_neighbors=self.max_num_neighbors, loop=True, flow='target_to_source')
+
+%         # messages: src -> dst
+%         src, dst = edge_index[0], edge_index[1]
+
+%         # Edge geometry for src->dst
+%         edge_vec = coords[src] - coords[dst]  # direction: src -> dst
+%         edge_len = edge_vec.norm(dim=-1)  # [E]
+%         edge_dir = F.normalize(edge_vec, dim=-1)  # [E, 3]
+%         edge_dir = torch.nan_to_num(edge_dir, nan=0.0)  # guard self-loops (zero vec)
+%         edge_scalar = soft_one_hot_linspace(
+%             edge_len,
+%             start=0.0,
+%             end=self.radius,
+%             number=self.num_basis,
+%             basis='gaussian',
+%             cutoff=True
+%         )  # [E, num_basis]
+
+%         # Attributes for forward edges
+%         edge_attr_fwd = torch.cat([
+%             edge_scalar,
+%             edge_dir,
+%             self.t_edge_proj(t_feat[batch][src])
+%         ], dim=-1)  # [E, num_basis + 3 + t_edge_proj_dim]
+
+%         # Build reverse edges and attributes (dst->src)
+%         edge_index_rev = torch.stack([dst, src], dim=0)
+
+%         # Attributes for reverse edges: same scaler, the direction flips sign, time feature comes from the new source (= old dst)
+%         edge_attr_rev = torch.cat([
+%             edge_scalar,  # same lengths/basis
+%             -edge_dir,  # flip direction
+%             self.t_edge_proj(t_feat[batch][dst])  # t from the reverse source
+%         ], dim=-1)
+
+%         # Concatenate to make the graph bidirectional
+%         edge_index = torch.cat([edge_index, edge_index_rev], dim=1)
+%         edge_attr = torch.cat([edge_attr_fwd, edge_attr_rev], dim=0)
+
+%         for conv, norm, pos_mlp, t_mlp in zip(self.convs, self.norms, self.pos_mlps, self.t_mlps):
+%             t_per_node = t_mlp(t_feat)[batch]  # [N, t_embed_dim]
+%             pos = pos_mlp(pos_feat)
+
+%             # Residual
+%             h_res = h
+
+%             # Concat time + feature
+%             h = conv(torch.cat([h, pos, t_per_node], dim=-1), edge_index=edge_index, edge_attr=edge_attr)
+
+%             # Normalization + residual
+%             h = self.act(norm(h, batch) + h_res)
+
+%         return self.output_proj(h)
+% \end{minted}
 
 \clearpage
 

@@ -13,7 +13,7 @@
 \usepackage[a4paper,left=3cm,right=3cm,top=3cm,bottom=3cm]{geometry}
 \raggedbottom % don't force equal height pages. Or \flushbottom to make make pages equal height
 \allowdisplaybreaks % allow page breaks inside equations 
-\graphicspath{{./imgs/}{../benchmark/}}
+\graphicspath{{./imgs/}{../benchmark/}{../figs/}}
 
 \newtheorem{theorem}{Theorem}[section]
 \newtheorem{definition}{Definition}[section]
@@ -362,7 +362,7 @@ Instead of linear growth, the cosine schedule ensures a smoother increase in noi
 %TODO
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.7\linewidth]{example-image}
+    \includegraphics[width=\linewidth]{linear_vs_cosine.png}
     \caption{Linear schedule vs. cosine schedule.}
     \label{fig:schedule-linear-vs-cosine}
 \end{figure}

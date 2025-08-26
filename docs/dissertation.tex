@@ -2,7 +2,7 @@
 \usepackage[T1]{fontenc}
 \usepackage{parskip} % Removes paragraph indentation, adds vertical space between paragraphs
 \usepackage{
-    abraces, algorithm, algpseudocode, amsfonts, amsmath, amssymb, amsthm, bm, enumitem, graphicx, mathtools, subcaption
+    abraces, algorithm, algpseudocode, amsfonts, amsmath, amssymb, amsthm, bm, booktabs, enumitem, graphicx, mathtools, subcaption
 }
 \usepackage{natbib}
 \usepackage{newtxtext,newtxmath} % modern, Times-like + proper math. Or \usepackage{lmodern}
@@ -271,7 +271,7 @@ Rather than directly modelling likelihoods or sampling distributions, we train a
 \subsection{Score Matching and Training Objective}
 The reverse-time SDE depends on the score function \(\nabla_x \log p_t(x)\), which is generally intractable. Thus, the central learning problem in score-based diffusion is to approximate this score with a neural network \(s_\theta(x,t)\), called time dependent score network (TDSN) \citep{song2021ScoreBasedGenerativeModeling}. Training requires a loss function that encourages \(s_\theta\) to match the true score across noise levels.
 
-\subsubsection{Score Matching and Denoising Score Matching}
+\subsubsection{Score Matching and Denoising Score Matching}\label{sec:SM-and-DSM}
 For each time \(t\), the score function of \(x_t\) can be trained via minimising the Fisher divergence
 \begin{align*}
     \mathbb{E}_{p\left(x_t\right)}\left[\norm{\nabla_{x_t}\log p\left(x_t\right)-s_{\theta}\left(x_t, t\right)}_2^2\right].
@@ -289,9 +289,9 @@ Note that the term \(\tr\left(\nabla_{x_t}s_{\theta}\left(x_t,t\right)\right)\) 
 where \(\mu_t\) and \(\sigma_t^2\) are given by \cref{eq:VPSDE-solution-mean,eq:VPSDE-solution-variance}, respectively.
 
 The denoising score matching objective \(J^{\text{DSM}}_t\) is for a specific time \(t\). To train the score model across all time \(t\in\left[0,1\right]\) in one go, the overall objective is given by a weighted sum (or average) \citep{song2021ScoreBasedGenerativeModeling}
-\begin{align*}
+\begin{align}\label{eq:DSM}
     J^{\text{DSM}}=\mathbb{E}_{t\sim\mathcal{U}(0,1)}\left[\lambda\!\left(t\right)J^{\text{DSM}}_t\right],
-\end{align*}
+\end{align}
 where \(\lambda\!\left(t\right)\) is a positive weighting function.
 
 The learning problem for score-based diffusion therefore reduces to denoising score matching: the neural network \(s_\theta(x,t)\) is trained to approximate \(\nabla_x \log p_t(x)\) across different noise levels. Once trained, this network can be used to drive the reverse SDE, enabling generation of new samples from Gaussian noise.
@@ -306,7 +306,7 @@ The simplest approach is to discretise the reverse SDE using the Euler-Maruyama 
 \end{align}
 where \(z_i \sim \mathcal{N}(0,I)\) and \(\Delta t = t_{i-1} - t_i\). This procedure generates approximate samples from the data distribution. While straightforward, its quality depends heavily on the number of discretisation steps: smaller steps yield higher fidelity at the cost of computational time.
 
-\subsubsection{Predictor-Corrector Sampling}
+\subsubsection{Predictor-Corrector Sampling}\label{sec:PC-sampling}
 The Predictor-Corrector sampler was proposed by \citet{song2021ScoreBasedGenerativeModeling} as an improved sampling method. It is based on combining two components:
 \begin{enumerate}
     \item \textbf{Predictor step:} one update using the reverse SDE (e.g., via Euler-Maruyama method, \cref{eq:Euler-Maruyama-reverse-SDE}), advancing the trajectory toward lower noise levels.
@@ -325,14 +325,14 @@ In this dissertation, we use predictor-corrector sampling as our default procedu
 The design of the noise schedule plays a central role in the performance of score-based diffusion models. 
 The schedule determines how the variance of the forward diffusion process evolves over time, which directly influences both training stability and the quality of generated samples.
 
-\subsubsection*{Linear Schedules}
+\subsubsection{Linear Schedules}
 In the original DDPM formulation \citep{hoDenoisingDiffusionProbabilistic2020}, the variance schedule \(\{\beta_i\}_{i=1}^N\) was chosen to increase linearly from a small value to a larger one over \(N\) steps. Equivalently, in the continuous SDE formulation \citep{song2021ScoreBasedGenerativeModeling}, this corresponds to a linear growth of the noise rate
 \begin{align*}
     \beta\!\left(t\right)=\beta_0+\left(\beta_1-\beta_0\right)t.
 \end{align*}
 While simple, this schedule can be suboptimal: early time steps may inject too little noise, leading to poor coverage of high-noise regions during training, while later steps may over-noise the data, resulting in wasted computation.
 
-\subsubsection*{Cosine Variance-Preserving Schedule}
+\subsubsection{Cosine Variance-Preserving Schedule}\label{sec:Cos-schedule}
 \citet{nicholImprovedDenoisingDiffusion2021} proposed a cosine schedule for the noising process in DDPM, which has since become widely adopted \citep{dhariwal2021DiffusionModelsBeat,saharia2022PhotorealisticTexttoImageDiffusion,watsonNovoDesignProtein2023}. The proposed cosine schedule corresponds to using
 \begin{align*}
     \bar \alpha_i = \frac{\cos^2\!\left(\frac{\pi}{2}\cdot\frac{i/N+s}{1+s}\right)}{\cos^2\!\left(\frac{\pi}{2}\frac{s}{1+s}\right)}
@@ -420,7 +420,7 @@ Section~\ref{sec:Experiments} reports RMSD/TM results and discusses the limitati
 A protein backbone  of length \(L\) is represented as a graph \(G=(V,E)\), where each amino acid (or its corresponding C\(_\alpha\) atoms) corresponds to a node and edges capture both geometric proximity and sequential connectivity. This formulation enables the use of graph neural networks as score models, allowing information to be propagated through local neighbourhoods while respecting the spatial structure of the backbone. 
 
 \paragraph{Nodes and node features.}
-Each node \(i \in V\) corresponds to a amino acid with coordinate \(x^i \in \mathbb{R}^3\) representing the position of its C\(_\alpha\) atom. For simplicity, we do not include amino acid type or side-chain information in this work, focusing purely on the geometry of the C\(_\alpha\) atoms backbone. In addition to the coordinates, extra node features are initialised as positional embeddings derived from the amino acid index, along with time-conditioning features from the diffusion process (see \cref{subsec:architectures}). The full node feature vector is then obtained by concatenation:
+Each node \(i \in V\) corresponds to a amino acid with coordinate \(x^i \in \mathbb{R}^3\) representing the position of its C\(_\alpha\) atom. For simplicity, we do not include amino acid type or side-chain information in this work, focusing purely on the geometry of the C\(_\alpha\) atoms backbone. In addition to the coordinates (perturbation noises), extra node features are initialised as positional embeddings derived from the amino acid index (see \cref{subsec:architectures}, \cref{eq:positional-embedding}), along with time-conditioning features from the diffusion process (see \cref{subsec:architectures}, \cref{eq:time-embedding}). The full node feature vector is then obtained by concatenation:
 \begin{align*}
     \text{Node feature} = \big[ \; \text{noises} \;\|\; \text{positional embedding} \;\|\; \text{time embedding} \;\big].
 \end{align*}
@@ -445,156 +445,125 @@ For each edge \((i,j) \in E\), we compute a feature vector combining geometric a
             d^{\left(i,j\right)} = \frac{x^i - x^j}{\|x^i - x^j\|}\in \mathbb{R}^{3}
         \end{align*}
         encodes the relative orientation of the neighbour. This directional feature allows the network to capture local geometry beyond mere distances \citep{watsonNovoDesignProtein2023}.
-    \item \textbf{Time embedding:} The diffusion timestep \(t\) is embedded into high-dimensional features (see \cref{subsec:architectures}) and projected through a linear layer. For each edge \((i,j)\), we associate the time embedding with the source node \(i\), enabling time-dependent conditioning of messages.
+    \item \textbf{Time embedding:} The diffusion timestep \(t\) is embedded into high-dimensional features (see \cref{subsec:architectures}, \cref{eq:time-embedding}) and projected through a linear layer. For each edge \((i,j)\), we associate the time embedding with the source node \(i\), enabling time-dependent conditioning of messages.
 \end{itemize}
 The full edge feature vector is then obtained by concatenation:
 \begin{align*}
-    h_{ij} = \big[ \;\phi_{1:M}\;\|\; d^{\left(i,j\right)},\,\forall \left(i,j\right)\in E \;\|\; \text{time embedding} \;\big].
+    h_{ij} = \big[ \;\phi_{1:M} \;\|\; d^{\left(i,j\right)},\,\forall \left(i,j\right)\in E \;\|\; \text{time embedding} \;\big].
 \end{align*}
 
 \paragraph{Rationale.}
 This graph construction has several desirable properties: (i) it scales linearly with the number of amino acids (C\(_\alpha\) atoms) \(L\), (ii) it incorporates both distance and orientation information, which are critical for protein geometry, and (iii) it enables variable-length backbones to be handled naturally without padding. These features make it well-suited for score-based diffusion over protein structures.
 
-\subsection{Models Architectures}\label{subsec:architectures}
+\subsection{Score Models Architectures}\label{subsec:architectures}
 The score network \(s_\theta(x,t)\) is parameterised by a neural network that maps noisy protein backbones to score estimates. We explore several architectures of increasing complexity, from a padding-based UNet model to a Graph Neural Network that utilises the graph representation.
 
-\subsubsection{UNet Architecture on padded chains.}
+\subsubsection{UNet Architecture on Padded Data}
 As a baseline, we implemented a UNet architecture \citep{ronneberger2015UNetConvolutionalNetworks} with one dimensional convolutional neural networks applied directly to backbone coordinates represented as sequences of fixed length. Each protein was zero-padded to a common maximum length, and the UNet operated on the resulting coordinate tensors. This design provides a simple convolutional benchmark but does not handle variable-length inputs naturally and discards explicit geometric relationships between amino acids. It serves primarily as a sanity check to compare graph-based approaches against a conventional deep learning model.
 
-\subsubsection{Graph Neural Network}
-Convolution layers via graph representation can be implemented via graph neural networks (GNN) \citep{scarselliGraphNeuralNetwork2009}.
-% Here should be some intro to GNN model architecture. by \citep{scarselliGraphNeuralNetwork2009}.
-\citet{PyG1.0,PyG2.0} implements multiple variation of GNNs. We will use the transformer GNN from \citet{shi2021MaskedLabelPrediction} to improve the expressiveness of message passing by introducing attention mechanism of edge features (along with node features node features \citep{velickovicGraphAttentionNetworks2018}) into graph learning.
-This makes the mechanism particularly well-suited for protein backbones, 
-where spatial context determines structural validity. % should improve this: why it is useful to use attention, what does it impeoved in general
+\subsubsection{Graph Neural Network on Graph-Structured Data}
+\paragraph{Graph Neural Networks.}
+Convolutional layers on graph-structured data can be implemented via Graph Neural Networks (GNNs) \citep{scarselliGraphNeuralNetwork2009,gilmer2017NeuralMessagePassing,kipf2017SemiSupervisedClassificationGraph,battaglia2018RelationalInductiveBiases}, which extend the idea of neural networks to arbitrary graph domains. In this framework, each node updates its representation by aggregating information, or messages, from its neighbours, typically following the generic message passing scheme \citep{gilmer2017NeuralMessagePassing}
+\begin{align}\label{eq:GNN-message-passing}
+    h_i^{(\ell+1)} \;=\; U\!\left(h_i^{(\ell)}, \; M\!\left(\mathcal{N}(i)\right)\right),
+\end{align}
+where \(h_i^{(\ell)}\) is the hidden state of node \(i\) at layer \(\ell\), \(\mathcal{N}(i)\) denotes the neighbourhood of node \(i\), \(M\) is a function that computes messages from the features of neighbouring nodes and edges, and \(U\) is an update function that integrates these messages into the node state.
 
-\paragraph{Baseline: TransformerConv without positional encodings.}
-Our second baseline employs a graph neural network built from \texttt{TransformerConv} layers~\cite{PyG1.0,PyG2.0}, which extend graph attention mechanisms with edge features. 
-The network consists of five stacked TransformerConv layers with residual connections and GraphNorm~\cite{cai2021GraphNormPrincipledApproach} normalisation. 
-Edge features are given by the radial basis, directional vectors, and diffusion time embeddings described in Section~\ref{subsec:graph-repr}. 
-This baseline captures geometric neighbourhood information but does not incorporate explicit positional encodings of residue indices, limiting its ability to represent sequential structure.
-
-\paragraph{Main model: TransformerConv with positional encodings.}
-Our main model extends the baseline TransformerConv GNN by incorporating sinusoidal positional embeddings of residue indices. 
-For each node \(i\), we compute a positional encoding \(p_i \in \mathbb{R}^d\) using the standard formulation introduced for Transformers~\cite{vaswaniAttentionAllYou2017}, 
+Various graph neural network architectures are available in the PyTorch Geometric package \citep{PyG1.0,PyG2.0}. In this work we build on the Transformer-based graph convolution network (GCN) (\texttt{torch\_geometric.nn.conv.TransformerConv}) proposed by \citet{shi2021MaskedLabelPrediction}, which improves the expressiveness of message passing by incorporating an attention mechanism over both node and edge features. Here the functions \(M\) and \(U\) in \cref{eq:GNN-message-passing} are defined via
 \begin{align*}
-    p_{i,2k} = \sin\!\left(\frac{i}{10000^{2k/d}}\right), \quad p_{i,2k+1} = \cos\!\left(\frac{i}{10000^{2k/d}}\right),
+    q_i \;&= W_q h_i^{(\ell)},\quad k_j = W_k h_j^{(\ell)}, \\
+    \alpha_{ij}^{(\ell)} \;&=\; \mathrm{softmax}_{j \in \mathcal{N}(i)} 
+    \big( q_i^{\top} (k_j + W_e e_{ij}) \big), \\
+    h_i^{(\ell+1)} \;&=\; \sum_{j \in \mathcal{N}(i)} 
+    \alpha_{ij}^{(\ell)} \, W_v h_j^{(\ell)},
 \end{align*}
-where \(d\) is the embedding dimension. These embeddings are projected through a linear layer and added to the initial node features, enabling the network to distinguish residues by their sequential position along the backbone.
+where \(e_{ij}\) is the edge feature vector, \(\alpha_{ij}^{(\ell)}\) are the attention weights, and \(W_q, W_k, W_e, W_v\) are learnable projections. In practice, multiple attention heads are computed in parallel and concatenated, but we present the single-head formulation for clarity. This formulation allows geometric encodings such as distances, orientations, and diffusion time embeddings to directly influence the attention weights, making the layer particularly well suited to protein backbone graphs.
 
-\begin{remark} %TODO
-    \textbf{Time Conditioning via Gaussian Fourier Features}
-    Following \cite{song2021ScoreBasedGenerativeModeling}, we embed the diffusion time step \(t\in\left(0,1\right)\) using random Fourier features \cite{tancikFourierFeaturesLet2020}
-    \begin{align*}
-        \gamma\left(t\right)=\left[\cos\left(2\pi Wt\right),\sin\left(2\pi Wt\right)\right],\quad W\sim\mathcal{N}\left(0,s^2\right),
-    \end{align*}
-    to provide continuous and expressive encoding of time.
-    \textbf{Positional Encoding for Node Order Awareness}
-    Graph-based models are inherently invariant to node permutations, which can be a limitation when modeling protein backbones, where the sequential order of residues encodes biologically meaningful directionality along the chain. To inject this ordering information, each node is assigned a scalar index \(p\in\left[0,1\right]\) representing its normalized position in the sequence. This index is first mapped to a high-dimensional representation using a sinusoidal encoding \cite{vaswaniAttentionAllYou2017}
-    \begin{align*}
-        \rho\left(p\right)=\left[\sin\left(\omega_1 p\right),\cos\left(\omega_1 p\right),\sin\left(\omega_2 p\right),\cos\left(\omega_2 p\right),...\right]
-    \end{align*}
-    where \(w_k\)'s are fixed frequencies. The resulting positional embedding is then passed through a learnable transformation, such as a multilayer perceptron (MLP), before being incorporated into the model
-\end{remark}
+\paragraph{Time conditioning via Gaussian Fourier features.}
+Following \citet{song2021ScoreBasedGenerativeModeling}, we embed the diffusion time step \(t \in (0,1)\) using Gaussian Fourier features \citep{tancikFourierFeaturesLet2020}. Let \(d_{t}\) denote the dimension of time embedding, and let \(W \in \mathbb{R}^{d_{t}/2}\) have independent components \(W_k \sim \mathcal{N}(0,s^2)\) for \(k=1,...,d_{t}/2\). Then the embedding is defined by
+\begin{align}\label{eq:time-embedding}
+    \gamma(t) \;=\; \big[\, \cos(2\pi W t),\; \sin(2\pi W t)\,\big] \;\in \mathbb{R}^d_t,
+\end{align}
+where cosine and sine are applied elementwise. This provides a smooth and expressive encoding of time, allowing the score network to capture the evolution of noise levels across the diffusion process. In practice, \(\gamma(t)\) is passed through a shallow multi-layer perceptron (MLP) before being concatenated with node and edge features to condition the network on the current diffusion step.
 
-The model architecture is as follows:
-\begin{itemize}
-    \item \textbf{Input:} node features = positional embedding + time embedding; edge features = radial basis + direction + time embedding.  
-    \item \textbf{Five TransformerConv layers:} each layer performs multi-head attention over neighbourhoods defined by the radius graph, using edge features to modulate attention weights. Residual connections are applied between layers.  
-    \item \textbf{Normalisation:} GraphNorm is applied within each block to stabilise training.  
-    \item \textbf{Output:} the network predicts the score vector \(s_\theta(x,t) \in \mathbb{R}^{3L}\), matching the dimensionality of the input coordinates.  
-\end{itemize}
+\paragraph{Sinusoidal positional embeddings of amino acid indices.}
+Graph-based models are inherently invariant to node permutations, which can be a limitation when modeling protein backbones where the sequential order of amino acids carries biologically meaningful directionality along the chain. To inject this ordering information, each node \(i \in \{1,\dots,L\}\) is assigned a normalized scalar index \(i/L \in (0,1]\). This scalar is mapped to a high-dimensional representation using sinusoidal positional encodings \citep{vaswaniAttentionAllYou2017},
+\begin{align}\label{eq:positional-embedding}
+    \rho(i) \;=\; \big[\, \sin(\omega_1 i/L),\; \cos(\omega_1 i/L),\; \dots,\; \sin(\omega_{d_i/2} i/L),\; \cos(\omega_{d_i/2} i/L)\,\big]\in\mathbb{R}^{d_i},
+\end{align}
+where \(d_i\) is the dimension of positional embedding, and \(\{\omega_k\}\) are fixed, exponentially spaced frequencies. The resulting positional embedding is passed through a shallow multi-layer perceptron (MLP) and concatenated with the initial node features, enabling the network to distinguish amino acids by their sequential position along the backbone.
 
 \paragraph{Residual structure.}
-Residual connections are crucial in deep graph networks, particularly when stacking multiple attention layers. 
-For each TransformerConv block, the output is added to the block input before normalisation:
-\begin{align*}
-    h^{(l+1)} = \mathrm{GraphNorm}\!\big(h^{(l)} + \mathrm{TransformerConv}(h^{(l)}, E)\big).
-\end{align*}
-This design improves gradient flow, stabilises optimisation, and enhances performance, particularly on long backbones.
+Training deep graph networks is challenging because repeated aggregation can lead to oversmoothing of node representations and vanishing gradients \citep{li2018DeeperInsightsGraph,li2019DeepGCNsCanGCNs}. Residual connections \citep{he2016DeepResidualLearning} have since become a standard component of graph neural networks \citep{kipf2017SemiSupervisedClassificationGraph,li2019DeepGCNsCanGCNs}. They allow each layer to refine representations relative to the previous ones rather than completely replacing them, facilitating gradient flow through many stacked layers.
 
-\paragraph{Architectural choices.}
-We experimented with both GraphNorm and LayerNorm as normalisation layers, finding GraphNorm to perform more consistently across models. 
-BatchNorm was not suitable due to the highly variable protein lengths and small batch sizes. 
-The choice of five TransformerConv layers reflects a balance between model expressivity and computational cost, given the memory requirements of neighbourhood-based attention. 
+In this work we adopt a residual structure for every GNN (\texttt{TransformerConv}) block, so that the output of each layer is added to its input before passing through nonlinearities and normalisation. To further stabilise training, we employ GraphNorm \citep{cai2021GraphNormPrincipledApproach}, a normalisation technique specifically designed for graph neural networks. GraphNorm normalises node embeddings using graph-level statistics, improving convergence speed and reducing training instability compared to BatchNorm or LayerNorm. 
 
-\paragraph{Summary.}
-The UNet baseline provides a simple non-graph benchmark; the TransformerConv baseline demonstrates the benefit of neighbourhood-based attention without positional encodings; and the main TransformerConv model with positional embeddings forms the most expressive architecture, integrating geometric, sequential, and temporal information for score estimation.
-
-\subsection{Training Setup}\label{subsec:training-setup}
-% Loss (denoising score matching), cosine VP schedule (simplified cosine form), sampler (predictor–corrector), data processing (CATH S40, CA extraction), hyperparameters.
-Having defined the representation and model architectures, we now describe the training setup used to learn score networks for protein backbone generation.
-
-\paragraph{Dataset.}
-We train and evaluate on the CATH S40 dataset, a widely used benchmark for structural modelling tasks. 
-This dataset clusters protein domains at \(40\%\) sequence identity, ensuring reduced redundancy while maintaining structural diversity. 
-For each structure, we extract the backbone coordinates by retaining only the C\(_\alpha\) atom of each residue. 
-Backbones are represented as variable-length sequences of C\(_\alpha\) coordinates \(\{x_i \in \mathbb{R}^3\}_{i=1}^L\), which are then converted into graphs as described in Section~\ref{subsec:graph-repr}. 
-We split the dataset into training, validation, and test sets at the domain level to avoid leakage between structurally similar proteins.
-
-\paragraph{Forward process and noise schedule.}
-We adopt the variance-preserving (VP) SDE formulation with the cosine noise schedule introduced by \cite{nicholImprovedDenoisingDiffusion2021}. Specifically, the cumulative noise attenuation is defined as
-\begin{align*}
-    \bar \alpha_t = \cos^2\!\left(\frac{t+s}{1+s}\cdot \frac{\pi}{2}\right),
-\end{align*}
-with a small offset \(s = 10^{-4}\) to avoid singularities. Unlike the normalised version, we omit the denominator, which means that \(\bar\alpha_0 < 1\) and the process injects negligible noise even at \(t=0\). This simplified form has been adopted in prior implementations and provides a stable and effective noise schedule in practice. 
-
-\paragraph{Loss function.}
-Training follows the denoising score matching objective described in Section~\ref{sec:SBD}. For a random timestep \(t \sim \mathcal{U}(0,1)\), we sample noisy coordinates
-\begin{align*}
-    x_t = \sqrt{\bar\alpha_t}\,x_0 + \sqrt{1-\bar\alpha_t}\,\epsilon, \quad \epsilon \sim \mathcal{N}(0,I),
-\end{align*}
-and minimise the mean squared error between the predicted noise \(\epsilon_\theta(x_t, t)\) and the true noise \(\epsilon\). 
-Equivalently, this trains \(s_\theta\) to approximate the score \(\nabla_x \log p_t(x)\) up to a known scaling factor.
-
-\paragraph{Sampling.}
-At test time, new structures are generated by simulating the reverse SDE using predictor-corrector sampling \cite{song2021ScoreBasedGenerativeModeling}. 
-Starting from Gaussian noise \(x_T \sim \mathcal{N}(0,I)\), the process alternates between predictor steps (Euler-Maruyama updates of the reverse SDE) and corrector steps (Langevin dynamics refinements). 
-This yields improved fidelity compared to predictor-only integration.
-
-\paragraph{Optimisation.}
-Models are trained using the Adam optimiser (Kingma and Ba, *ICLR 2015*) with a learning rate of \(10^{-4}\) and weight decay of \(10^{-6}\). We use a batch size adapted to GPU memory constraints (typically between 16 and 32 backbones, depending on length). Mixed-precision training is employed to reduce memory usage. Training proceeds for \(300\) epochs with early stopping based on validation loss. 
-
-\paragraph{Implementation.}
-All models are implemented in PyTorch and PyTorch Geometric \citep{PyG1.0,PyG2.0}. Radius graphs are constructed on-the-fly at each forward pass using efficient neighbour search. Training and evaluation were performed on NVIDIA GPUs with \(48\)GB of memory.
+This combination of residual connections and GraphNorm improves optimisation stability, mitigates oversmoothing, and enables effective training of multi-layer architectures. Empirically, such designs have been shown to enhance performance on long chains and large graphs, which is particularly important in our setting of protein backbones where sequence lengths vary widely and capturing long-range dependencies is essential.
+\begin{remark}
+    The UNet baseline provides a simple non-graph benchmark. In practice, the inclusion of positional encodings has a noticeable effect on model quality. To quantify this contribution, we include a second baseline that employs the aforementioned GNN architecture without positional encodings. This variant captures local geometric neighbourhood information but lacks explicit representations of sequential order, thereby limiting its ability to model the directional structure of protein backbones.
+\end{remark}
 
 \subsection{Summary}\label{subsec:method-summary}
-In this section we described the methodology for adapting score-based diffusion models to the task of protein backbone generation. We began by outlining the structural constraints of proteins and motivated the use of a C\(_\alpha\)-only representation. We then formulated backbones as graphs, with nodes corresponding to residues and edges defined through a radius neighbourhood, augmented by radial basis encodings, directional features, and diffusion-time embeddings. This representation allows geometric information to be captured in a permutation-invariant manner while naturally supporting variable-length backbones.
+In this section we described the methodology for adapting score-based diffusion models to the task of protein backbone generation. We began by outlining the structural constraints of proteins and motivated the use of a C\(_\alpha\)-only representation. We then formulated backbones as graphs, with nodes corresponding to amino acids and edges defined through a radius neighbourhood, augmented by radial basis encodings, directional features, and diffusion-time embeddings. This representation captures geometric information in a permutation-invariant manner while naturally supporting variable-length backbones.
 
-We explored three architectures for the score network: a UNet baseline on padded coordinate sequences, a TransformerConv-based graph neural network without positional encodings, and our main model, a residual TransformerConv GNN with positional embeddings. The latter integrates geometric, sequential, and temporal information and demonstrated the strongest expressive capacity in preliminary tests. Architectural design choices, including residual connections and GraphNorm, were discussed in detail.
+We constructed a graph neural network for the score network: a residual Transformer-based GCN with positional embeddings. The latter integrates geometric, sequential, and temporal information, supported by residual connections and GraphNorm.
 
-Finally, we presented the training setup, including the variance-preserving SDE with a cosine noise schedule, the denoising score matching loss, predictor-corrector sampling, and optimisation procedures. Together, these elements define a principled and practical framework for learning score-based diffusion models on protein backbones.
-
-The next section reports experimental results, benchmarking these models on the CATH S40 dataset using both quantitative metrics (RMSD, TM-score) and qualitative visualisations.
+These methodological components together establish a principled framework for generative modelling of protein backbones using score-based diffusion. The next section presents experimental results, benchmarking these models on the CATH S40 dataset using both quantitative metrics (RMSD, TM-score) and qualitative structural visualisations.
 
 \clearpage
 
 \section{Experiments}\label{sec:Experiments}
-This section presents the experimental evaluation of the score-based diffusion models described in Section~\ref{sec:protein-gnn}. We benchmark three architectures on the CATH S40 dataset and assess their performance using quantitative metrics and qualitative visualisations. 
+This section presents the experimental evaluation of the score-based diffusion models described in \cref{sec:SBD,sec:protein-gnn}. We benchmark three architectures on the CATH S40 dataset and assess their performance using quantitative metrics and qualitative visualisations. 
 
-\subsection{Dataset and Preprocessing}\label{subsec:dataset}
-% --- To fill in ---
-% - Mention CATH S40 split sizes (train / validation / test).
-% - Any filtering or preprocessing steps.
-% - Statistics (e.g., distribution of backbone lengths).
-% (Optionally include a table or histogram figure here.)
+\subsection{Dataset}\label{subsec:dataset}
+We train our models on the CATH S40 dataset \citep{orengo1997CATHHierarchicClassification,waman2024CATH2024CATHAlphaFlow,sillitoe2021CATHIncreasedStructural,lewis2018Gene3DExtensivePrediction}, a widely used benchmark for structural modelling tasks. The dataset clusters protein domains at \(40\%\) sequence identity, ensuring reduced redundancy while maintaining broad structural diversity. 
+
+For each protein domain, we extract the backbone coordinates by retaining only the C\(_\alpha\) atom of each amino acid, yielding a variable-length sequence of coordinates \(\{x^i \in \mathbb{R}^3\}_{i=1}^L\), where \(L\) denotes the chain length, as mentioned in \cref{subsec:protein-structure}. The statistics of backbone lengths is summarised in \cref{tab:cath-stats}. Backbones are then converted into graphs as described in \cref{subsec:graph-repr}, and coordinates are normalised prior to training.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Summary statistics of backbone lengths in the CATH S40 dataset.}
+    \label{tab:cath-stats}
+    \begin{tabular}{lccccc}
+        \toprule
+        & Min & Max & Mean & Median & Std \\
+        \midrule
+        Length (\(L\)) & 11 & 1202 & 155 & 133 & 89 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Training and Sampling}
+\paragraph{Training setup.}
+For the forward noising process we adopt the variance-preserving (VP) SDE formulation (\cref{eq:VPSDE}) with the cosine noise schedule (\cref{eq:cosine-beta}). The training objective is the denoising score matching loss (\cref{eq:DSM}), optimising the score networks described in \cref{subsec:architectures}. Models are trained using the Adam optimiser \citep{kingma2017AdamMethodStochastic} with a batch size dynamically adapted to GPU memory constraints.
+
+\paragraph{Sampling.}
+New backbone structures are generated by simulating the reverse SDE using predictor-corrector (PC) sampling, starting from Gaussian noise (\cref{sec:PC-sampling}). This procedure enables diverse yet structurally plausible backbone generations.
+
+\paragraph{Implementation.}
+All models are implemented in Python using PyTorch and PyTorch Geometric \citep{PyG1.0,PyG2.0}. 
+Experiments were conducted on NVIDIA GPUs with 48GB memory.
 
 \subsection{Evaluation Metrics}\label{subsec:metrics}
-We evaluate reconstruction fidelity using two standard structural similarity measures:
-\begin{itemize}
-    \item \textbf{Root-mean-square deviation (RMSD):}
-        \begin{align*}
-            \mathrm{RMSD}(X, Y) = \sqrt{\frac{1}{L}\sum_{i=1}^{L} \|x_i - y_i\|^2},
-        \end{align*}
-        where \(X=\{x_i\}\) and \(Y=\{y_i\}\) are two aligned backbones of length \(L\). Lower RMSD indicates closer correspondence to the reference.
-    \item \textbf{TM-score:} a length-normalised measure of structural similarity ranging from \(0\) to \(1\), with higher values indicating better alignment. Unlike RMSD, TM-score is less sensitive to local errors and more reflective of global fold similarity.
-\end{itemize}
+We evaluate reconstruction fidelity using two widely adopted measures of structural similarity: root-mean-square deviation (RMSD) and TM-score.
 
-\paragraph{Paired evaluation vs.\ unconditional validity.}
-Because each generated backbone is compared to its specific native target of the same length \(L\), RMSD and TM-score measure reconstruction fidelity, not absolute physical validity. 
-This is appropriate for our benchmarking setting (paired evaluation), but one should interpret low TM or high RMSD with caution: a generated backbone may still represent a plausible alternative fold while scoring poorly against the chosen reference.
+\paragraph{Root-mean-square deviation (RMSD).}
+RMSD provides a direct measure of average atomic displacement between two aligned structures. 
+Given a generated backbone \(X=\{x_i\}_{i=1}^L\) and its reference \(Y=\{y_i\}_{i=1}^L\), 
+the RMSD is defined as
+\begin{align*}
+    \mathrm{RMSD}(X, Y) \;=\; \sqrt{\frac{1}{L}\sum_{i=1}^{L} \|x_i - y_i\|^2}.
+\end{align*}
+Lower values indicate closer correspondence to the reference. 
+Although widely used, RMSD can be overly sensitive to local misalignments, 
+and large deviations in one region may dominate the score even if the overall fold is preserved.
 
-We also report the raw training error (MSE between predicted and true noise) as an auxiliary metric.
+\paragraph{TM-align and TM-score.}
+To complement RMSD, we use TM-score \citep{zhang2004ScoringFunctionAutomated,xu2010HowSignificantProtein}, a structural similarity measure in \((0,1]\), computed via the TM-align algorithm \citep{zhang2005TMalignProteinStructure}. Unlike RMSD, TM-score is less affected by local errors and more reflective of global fold similarity. In practice, TM-align performs a sequence-independent superposition of two protein structures using heuristic dynamic programming, returning both an optimal alignment and the corresponding TM-score. Interpretation of TM-scores follows established conventions: values below \(0.2\) typically correspond to unrelated structures, while scores above \(0.5\) generally indicate that two proteins share the same overall fold within SCOP/CATH classification. Thus, TM-score serves as a more robust global measure of structural fidelity and complements RMSD in our evaluation.
+
+\begin{remark}
+    Because each generated backbone is compared to its specific native target of the same length \(L\), RMSD and TM-score measure reconstruction fidelity, not absolute physical validity. This is appropriate for our benchmarking setting (paired evaluation), but one should interpret low TM or high RMSD with caution: a generated backbone may still represent a plausible alternative fold while scoring poorly against the chosen reference.
+\end{remark}
 
 \subsection{Quantitative Results}\label{subsec:results}
 % --- To fill in ---

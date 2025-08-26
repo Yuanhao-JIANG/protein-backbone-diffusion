@@ -1,6 +1,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% UNet
+%% Architecture and Optimiser
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Unet
 @inproceedings{ronneberger2015UNetConvolutionalNetworks,
   title = {U-{{Net}}: {{Convolutional Networks}} for {{Biomedical Image Segmentation}}},
   shorttitle = {U-{{Net}}},
@@ -16,6 +17,34 @@
   isbn = {978-3-319-24574-4},
   langid = {english},
   keywords = {Convolutional Layer,Data Augmentation,Deep Network,Ground Truth Segmentation,Training Image}
+}
+
+% Residual Net
+@inproceedings{he2016DeepResidualLearning,
+  title = {Deep {{Residual Learning}} for {{Image Recognition}}},
+  booktitle = {Proceedings of the {{IEEE Conference}} on {{Computer Vision}} and {{Pattern Recognition}}},
+  author = {He, Kaiming and Zhang, Xiangyu and Ren, Shaoqing and Sun, Jian},
+  year = {2016},
+  pages = {770--778},
+  urldate = {2025-08-26}
+}
+
+% Adam optimiser
+@misc{kingma2017AdamMethodStochastic,
+  title = {Adam: {{A Method}} for {{Stochastic Optimization}}},
+  shorttitle = {Adam},
+  author = {Kingma, Diederik P. and Ba, Jimmy},
+  year = {2017},
+  month = jan,
+  number = {arXiv:1412.6980},
+  eprint = {1412.6980},
+  primaryclass = {cs},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.1412.6980},
+  urldate = {2025-08-26},
+  abstract = {We introduce Adam, an algorithm for first-order gradient-based optimization of stochastic objective functions, based on adaptive estimates of lower-order moments. The method is straightforward to implement, is computationally efficient, has little memory requirements, is invariant to diagonal rescaling of the gradients, and is well suited for problems that are large in terms of data and/or parameters. The method is also appropriate for non-stationary objectives and problems with very noisy and/or sparse gradients. The hyper-parameters have intuitive interpretations and typically require little tuning. Some connections to related algorithms, on which Adam was inspired, are discussed. We also analyze the theoretical convergence properties of the algorithm and provide a regret bound on the convergence rate that is comparable to the best known results under the online convex optimization framework. Empirical results demonstrate that Adam works well in practice and compares favorably to other stochastic optimization methods. Finally, we discuss AdaMax, a variant of Adam based on the infinity norm.},
+  archiveprefix = {arXiv},
+  keywords = {Computer Science - Machine Learning}
 }
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -226,6 +255,77 @@
 }
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% CATH Dataset
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+@article{orengo1997CATHHierarchicClassification,
+  title = {{{CATH}} -- a Hierarchic Classification of Protein Domain Structures},
+  author = {Orengo, C. A. and Michie, A. D. and Jones, S. and Jones, D. T. and Swindells, M. B. and Thornton, J. M.},
+  year = {1997},
+  month = aug,
+  journal = {Structure},
+  volume = {5},
+  number = {8},
+  pages = {1093--1109},
+  publisher = {Elsevier},
+  issn = {0969-2126},
+  doi = {10.1016/S0969-2126(97)00260-8},
+  urldate = {2025-08-26},
+  langid = {english},
+  pmid = {9309224},
+  keywords = {evolution,fold families,protein structure classification}
+}
+
+@article{waman2024CATH2024CATHAlphaFlow,
+  title = {{{CATH}} 2024: {{CATH-AlphaFlow Doubles}} the {{Number}} of {{Structures}} in {{CATH}} and {{Reveals Nearly}} 200 {{New Folds}}},
+  shorttitle = {{{CATH}} 2024},
+  author = {Waman, Vaishali P. and Bordin, Nicola and Alcraft, Rachel and Vickerstaff, Robert and Rauer, Clemens and Chan, Qian and Sillitoe, Ian and Yamamori, Hazuki and Orengo, Christine},
+  year = {2024},
+  month = sep,
+  journal = {Journal of Molecular Biology},
+  series = {Computation {{Resources}} for {{Molecular Biology}}},
+  volume = {436},
+  number = {17},
+  pages = {168551},
+  issn = {0022-2836},
+  doi = {10.1016/j.jmb.2024.168551},
+  urldate = {2025-08-26},
+  abstract = {CATH (https://www.cathdb.info) classifies domain structures from experimental protein structures in the PDB and predicted structures in the AlphaFold Database (AFDB). To cope with the scale of the predicted data a new NextFlow workflow (CATH-AlphaFlow), has been developed to classify high-quality domains into CATH superfamilies and identify novel fold groups and superfamilies. CATH-AlphaFlow uses a novel state-of-the-art structure-based domain boundary prediction method (ChainSaw) for identifying domains in multi-domain proteins. We applied CATH-AlphaFlow to process PDB structures not classified in CATH and AFDB structures from 21 model organisms, expanding CATH by over 100\%. Domains not classified in existing CATH superfamilies or fold groups were used to seed novel folds, giving 253 new folds from PDB structures (September 2023 release) and 96 from AFDB structures of proteomes of 21 model organisms. Where possible, functional annotations were obtained using (i) predictions from publicly available methods (ii) annotations from structural relatives in AFDB/UniProt50. We also predicted functional sites and highly conserved residues. Some folds are associated with important functions such as photosynthetic acclimation (in flowering plants), iron permease activity (in fungi) and post-natal spermatogenesis (in mice). CATH-AlphaFlow will allow us to identify many more CATH relatives in the AFDB, further characterising the protein structure landscape.},
+  keywords = {AlphaFold2,CATH,fold,protein domains}
+}
+
+@article{sillitoe2021CATHIncreasedStructural,
+  title = {{{CATH}}: Increased Structural Coverage of Functional Space},
+  shorttitle = {{{CATH}}},
+  author = {Sillitoe, Ian and Bordin, Nicola and Dawson, Natalie and Waman, Vaishali P and Ashford, Paul and Scholes, Harry M and Pang, Camilla S M and Woodridge, Laurel and Rauer, Clemens and Sen, Neeladri and Abbasian, Mahnaz and Le~Cornu, Sean and Lam, Su Datt and Berka, Karel and Varekova, Ivana~Huta{\v r}ov{\'a} and Svobodova, Radka and Lees, Jon and Orengo, Christine A},
+  year = {2021},
+  month = jan,
+  journal = {Nucleic Acids Research},
+  volume = {49},
+  number = {D1},
+  pages = {D266-D273},
+  issn = {0305-1048},
+  doi = {10.1093/nar/gkaa1079},
+  urldate = {2025-08-26},
+  abstract = {CATH (https://www.cathdb.info) identifies domains in protein structures from wwPDB and classifies these into evolutionary superfamilies, thereby providing structural and functional annotations. There are two levels: CATH-B, a daily snapshot of the latest domain structures and superfamily assignments, and CATH+, with additional derived data, such as predicted sequence domains, and functionally coherent sequence subsets (Functional Families or FunFams). The latest CATH+ release, version 4.3, significantly increases coverage of structural and sequence data, with an addition of 65,351 fully-classified domains structures (+15\%), providing 500 238 structural domains, and 151 million predicted sequence domains (+59\%) assigned to 5481 superfamilies. The FunFam generation pipeline has been re-engineered to cope with the increased influx of data. Three times more sequences are captured in FunFams, with a concomitant increase in functional purity, information content and structural coverage. FunFam expansion increases the structural annotations provided for experimental GO terms (+59\%). We also present CATH-FunVar web-pages displaying variations in protein sequences and their proximity to known or predicted functional sites. We present two case studies (1) putative cancer drivers and (2) SARS-CoV-2 proteins. Finally, we have improved links to and from CATH including SCOP, InterPro, Aquaria and 2DProt.}
+}
+
+@article{lewis2018Gene3DExtensivePrediction,
+  title = {{{Gene3D}}: {{Extensive}} Prediction of Globular Domains in Proteins},
+  shorttitle = {{{Gene3D}}},
+  author = {Lewis, Tony E and Sillitoe, Ian and Dawson, Natalie and Lam, Su Datt and Clarke, Tristan and Lee, David and Orengo, Christine and Lees, Jonathan},
+  year = {2018},
+  month = jan,
+  journal = {Nucleic Acids Research},
+  volume = {46},
+  number = {D1},
+  pages = {D435-D439},
+  issn = {0305-1048},
+  doi = {10.1093/nar/gkx1069},
+  urldate = {2025-08-26},
+  abstract = {Gene3D (http://gene3d.biochem.ucl.ac.uk) is a database of globular domain annotations for millions of available protein sequences. Gene3D has previously featured in the Database issue of NAR and here we report a significant update to the Gene3D database. The current release, Gene3D v16, has significantly expanded its domain coverage over the previous version and now contains over 95 million domain assignments. We also report a new method for dealing with complex domain architectures that exist in Gene3D, arising from discontinuous domains. Amongst other updates, we have added visualization tools for exploring domain annotations in the context of other sequence features and in gene families. We also provide web-pages to visualize other domain families that co-occur with a given query domain family.}
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Protein Generation with Diffusion
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 @article{jumper2021HighlyAccurateProtein,
@@ -321,7 +421,39 @@
   keywords = {Machine learning,Protein structure predictions}
 }
 
-% TMalign
+% TM-score
+@article{zhang2004ScoringFunctionAutomated,
+  title = {Scoring Function for Automated Assessment of Protein Structure Template Quality},
+  author = {Zhang, Yang and Skolnick, Jeffrey},
+  year = {2004},
+  journal = {Proteins: Structure, Function, and Bioinformatics},
+  volume = {57},
+  number = {4},
+  pages = {702--710},
+  issn = {1097-0134},
+  doi = {10.1002/prot.20264},
+  urldate = {2025-08-26},
+  abstract = {We have developed a new scoring function, the template modeling score (TM-score), to assess the quality of protein structure templates and predicted full-length models by extending the approaches used in Global Distance Test (GDT)1 and MaxSub.2 First, a protein size-dependent scale is exploited to eliminate the inherent protein size dependence of the previous scores and appropriately account for random protein structure pairs. Second, rather than setting specific distance cutoffs and calculating only the fractions with errors below the cutoff, all residue pairs in alignment/modeling are evaluated in the proposed score. For comparison of various scoring functions, we have constructed a large-scale benchmark set of structure templates for 1489 small to medium size proteins using the threading program PROSPECTOR\_3 and built the full-length models using MODELLER and TASSER. The TM-score of the initial threading alignments, compared to the GDT and MaxSub scoring functions, shows a much stronger correlation to the quality of the final full-length models. The TM-score is further exploited as an assessment of all `new fold' targets in the recent CASP5 experiment and shows a close coincidence with the results of human-expert visual assessment. These data suggest that the TM-score is a useful complement to the fully automated assessment of protein structure predictions. The executable program of TM-score is freely downloadable at http://bioinformatics.buffalo.edu/TM-score. Proteins 2004. {\copyright} 2004 Wiley-Liss, Inc.},
+  copyright = {Copyright {\copyright} 2004 Wiley-Liss, Inc.},
+  langid = {english}
+}
+
+@article{xu2010HowSignificantProtein,
+  title = {How Significant Is a Protein Structure Similarity with {{TM-score}} = 0.5?},
+  author = {Xu, Jinrui and Zhang, Yang},
+  year = {2010},
+  month = apr,
+  journal = {Bioinformatics},
+  volume = {26},
+  number = {7},
+  pages = {889--895},
+  issn = {1367-4803},
+  doi = {10.1093/bioinformatics/btq066},
+  urldate = {2025-08-26},
+  abstract = {Motivation: Protein structure similarity is often measured by root mean squared deviation, global distance test score and template modeling score (TM-score). However, the scores themselves cannot provide information on how significant the structural similarity is. Also, it lacks a quantitative relation between the scores and conventional fold classifications. This article aims to answer two questions: (i) what is the statistical significance of TM-score? (ii) What is the probability of two proteins having the same fold given a specific TM-score?Results: We first made an all-to-all gapless structural match on 6684 non-homologous single-domain proteins in the PDB and found that the TM-scores follow an extreme value distribution. The data allow us to assign each TM-score a P-value that measures the chance of two randomly selected proteins obtaining an equal or higher TM-score. With a TM-score at 0.5, for instance, its P-value is 5.5 {\texttimes} 10-7, which means we need to consider at least 1.8 million random protein pairs to acquire a TM-score of no less than 0.5. Second, we examine the posterior probability of the same fold proteins from three datasets SCOP, CATH and the consensus of SCOP and CATH. It is found that the posterior probability from different datasets has a similar rapid phase transition around TM-score=0.5. This finding indicates that TM-score can be used as an approximate but quantitative criterion for protein topology classification, i.e. protein pairs with a TM-score \&gt;0.5 are mostly in the same fold while those with a TM-score \&lt;0.5 are mainly not in the same fold.Contact: ~zhng@umich.eduSupplementary information: ~Supplementary data are available at Bioinformatics online.}
+}
+
+% TM-align
 @article{zhang2005TMalignProteinStructure,
   title = {{{TM-align}}: A Protein Structure Alignment Algorithm Based on the {{TM-score}}},
   shorttitle = {{{TM-align}}},
@@ -357,6 +489,68 @@
   keywords = {Biological system modeling,Biology,Chemistry,Computer vision,Data engineering,Data mining,graph neural networks (GNNs),graph processing,Graphical domains,Neural networks,Parameter estimation,Pattern recognition,recursive neural networks,Supervised learning}
 }
 
+% Message Passing
+@inproceedings{gilmer2017NeuralMessagePassing,
+  title = {Neural {{Message Passing}} for {{Quantum Chemistry}}},
+  booktitle = {Proceedings of the 34th {{International Conference}} on {{Machine Learning}}},
+  author = {Gilmer, Justin and Schoenholz, Samuel S. and Riley, Patrick F. and Vinyals, Oriol and Dahl, George E.},
+  year = {2017},
+  month = jul,
+  pages = {1263--1272},
+  publisher = {PMLR},
+  issn = {2640-3498},
+  urldate = {2025-08-26},
+  abstract = {Supervised learning on molecules has incredible potential to be useful in chemistry, drug discovery, and materials science. Luckily, several promising and closely related neural network models invariant to molecular symmetries have already been described in the literature. These models learn a message passing algorithm and aggregation procedure to compute a function of their entire input graph. At this point, the next step is to find a particularly effective variant of this general approach and apply it to chemical prediction benchmarks until we either solve them or reach the limits of the approach. In this paper, we reformulate existing models into a single common framework we call Message Passing Neural Networks (MPNNs) and explore additional novel variations within this framework. Using MPNNs we demonstrate state of the art results on an important molecular property prediction benchmark; these results are strong enough that we believe future work should focus on datasets with larger molecules or more accurate ground truth labels.},
+  langid = {english}
+}
+
+% GCN, Use residual connections
+@misc{kipf2017SemiSupervisedClassificationGraph,
+  title = {Semi-{{Supervised Classification}} with {{Graph Convolutional Networks}}},
+  author = {Kipf, Thomas N. and Welling, Max},
+  year = {2017},
+  month = feb,
+  number = {arXiv:1609.02907},
+  eprint = {1609.02907},
+  primaryclass = {cs},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.1609.02907},
+  urldate = {2025-07-23},
+  abstract = {We present a scalable approach for semi-supervised learning on graph-structured data that is based on an efficient variant of convolutional neural networks which operate directly on graphs. We motivate the choice of our convolutional architecture via a localized first-order approximation of spectral graph convolutions. Our model scales linearly in the number of graph edges and learns hidden layer representations that encode both local graph structure and features of nodes. In a number of experiments on citation networks and on a knowledge graph dataset we demonstrate that our approach outperforms related methods by a significant margin.},
+  archiveprefix = {arXiv},
+  keywords = {Computer Science - Machine Learning,Statistics - Machine Learning}
+}
+
+% Oversmoothing issue
+@article{li2018DeeperInsightsGraph,
+  title = {Deeper {{Insights Into Graph Convolutional Networks}} for {{Semi-Supervised Learning}}},
+  author = {Li, Qimai and Han, Zhichao and Wu, Xiao-ming},
+  year = {2018},
+  month = apr,
+  journal = {Proceedings of the AAAI Conference on Artificial Intelligence},
+  volume = {32},
+  number = {1},
+  issn = {2374-3468},
+  doi = {10.1609/aaai.v32i1.11604},
+  urldate = {2025-08-26},
+  abstract = {Many interesting problems in machine learning are being revisited with new deep learning tools. For graph-based semi-supervised learning, a recent important development is graph convolutional networks (GCNs), which nicely integrate local vertex features and graph topology in the convolutional layers. Although the GCN model compares favorably with other state-of-the-art methods, its mechanisms are not clear and it still requires considerable amount of labeled data for validation and model selection. In this paper, we develop deeper insights into the GCN model and address its fundamental limits. First, we show that the graph convolution of the GCN model is actually a special form of Laplacian smoothing, which is the key reason why GCNs work, but it also brings potential concerns of over-smoothing with many convolutional layers. Second, to overcome the limits of the GCN model with shallow architectures, we propose both co-training and self-training approaches to train GCNs. Our approaches significantly improve GCNs in learning with very few labels, and exempt them from requiring additional labels for validation. Extensive experiments on benchmarks have verified our theory and proposals.},
+  copyright = {Copyright (c)},
+  langid = {english},
+  keywords = {graph-based learning}
+}
+
+
+@inproceedings{li2019DeepGCNsCanGCNs,
+  title = {{{DeepGCNs}}: {{Can GCNs Go As Deep As CNNs}}?},
+  shorttitle = {{{DeepGCNs}}},
+  booktitle = {Proceedings of the {{IEEE}}/{{CVF International Conference}} on {{Computer Vision}}},
+  author = {Li, Guohao and Muller, Matthias and Thabet, Ali and Ghanem, Bernard},
+  year = {2019},
+  pages = {9267--9276},
+  urldate = {2025-08-26}
+}
+
+% GAT
 @misc{velickovicGraphAttentionNetworks2018,
   title = {Graph {{Attention Networks}}},
   author = {Veli{\v c}kovi{\'c}, Petar and Cucurull, Guillem and Casanova, Arantxa and Romero, Adriana and Li{\`o}, Pietro and Bengio, Yoshua},
@@ -373,6 +567,23 @@
   keywords = {Computer Science - Artificial Intelligence,Computer Science - Machine Learning,Computer Science - Social and Information Networks,Statistics - Machine Learning}
 }
 
+@misc{battaglia2018RelationalInductiveBiases,
+  title = {Relational Inductive Biases, Deep Learning, and Graph Networks},
+  author = {Battaglia, Peter W. and Hamrick, Jessica B. and Bapst, Victor and {Sanchez-Gonzalez}, Alvaro and Zambaldi, Vinicius and Malinowski, Mateusz and Tacchetti, Andrea and Raposo, David and Santoro, Adam and Faulkner, Ryan and Gulcehre, Caglar and Song, Francis and Ballard, Andrew and Gilmer, Justin and Dahl, George and Vaswani, Ashish and Allen, Kelsey and Nash, Charles and Langston, Victoria and Dyer, Chris and Heess, Nicolas and Wierstra, Daan and Kohli, Pushmeet and Botvinick, Matt and Vinyals, Oriol and Li, Yujia and Pascanu, Razvan},
+  year = {2018},
+  month = oct,
+  number = {arXiv:1806.01261},
+  eprint = {1806.01261},
+  primaryclass = {cs},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.1806.01261},
+  urldate = {2025-08-26},
+  abstract = {Artificial intelligence (AI) has undergone a renaissance recently, making major progress in key domains such as vision, language, control, and decision-making. This has been due, in part, to cheap data and cheap compute resources, which have fit the natural strengths of deep learning. However, many defining characteristics of human intelligence, which developed under much different pressures, remain out of reach for current approaches. In particular, generalizing beyond one's experiences--a hallmark of human intelligence from infancy--remains a formidable challenge for modern AI. The following is part position paper, part review, and part unification. We argue that combinatorial generalization must be a top priority for AI to achieve human-like abilities, and that structured representations and computations are key to realizing this objective. Just as biology uses nature and nurture cooperatively, we reject the false choice between "hand-engineering" and "end-to-end" learning, and instead advocate for an approach which benefits from their complementary strengths. We explore how using relational inductive biases within deep learning architectures can facilitate learning about entities, relations, and rules for composing them. We present a new building block for the AI toolkit with a strong relational inductive bias--the graph network--which generalizes and extends various approaches for neural networks that operate on graphs, and provides a straightforward interface for manipulating structured knowledge and producing structured behaviors. We discuss how graph networks can support relational reasoning and combinatorial generalization, laying the foundation for more sophisticated, interpretable, and flexible patterns of reasoning. As a companion to this paper, we have released an open-source software library for building graph networks, with demonstrations of how to use them in practice.},
+  archiveprefix = {arXiv},
+  keywords = {Computer Science - Artificial Intelligence,Computer Science - Machine Learning,Statistics - Machine Learning}
+}
+
+% Graph Norm
 @inproceedings{cai2021GraphNormPrincipledApproach,
   title = {{{GraphNorm}}: {{A Principled Approach}} to {{Accelerating Graph Neural Network Training}}},
   shorttitle = {{{GraphNorm}}},
@@ -388,6 +599,7 @@
   langid = {english}
 }
 
+% Transformer Graph
 @misc{shi2021MaskedLabelPrediction,
   title = {Masked {{Label Prediction}}: {{Unified Message Passing Model}} for {{Semi-Supervised Classification}}},
   shorttitle = {Masked {{Label Prediction}}},

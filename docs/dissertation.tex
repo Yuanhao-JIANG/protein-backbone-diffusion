@@ -419,49 +419,54 @@ Section~\ref{sec:Experiments} reports RMSD/TM results and discusses the limitati
 \subsection{Graph Representation of Backbones}\label{subsec:graph-repr}
 A protein backbone  of length \(L\) is represented as a graph \(G=(V,E)\), where each amino acid (or its corresponding C\(_\alpha\) atoms) corresponds to a node and edges capture both geometric proximity and sequential connectivity. This formulation enables the use of graph neural networks as score models, allowing information to be propagated through local neighbourhoods while respecting the spatial structure of the backbone. 
 
-\paragraph{Nodes.}
-Each node \(i \in V\) corresponds to a amino acid with coordinate \(x^i \in \mathbb{R}^3\) representing the position of its C\(_\alpha\) atom. For simplicity, we do not include amino acid type or side-chain information in this work, focusing purely on the geometry of the C\(_\alpha\) atoms backbone. In addition to the coordinates, extra node features are initialised as positional embeddings derived from the amino acid index, along with time-conditioning features from the diffusion process. See \cref{subsec:architectures}.
-% TODO: Detail Similar as:
-% The full edge feature vector is then obtained by concatenation:
-% \begin{align*}
-%     h_{ij} = \big[ \; \text{radial basis} \;\|\; \text{direction} \;\|\; \text{time embedding} \;\big].
-% \end{align*}
+\paragraph{Nodes and node features.}
+Each node \(i \in V\) corresponds to a amino acid with coordinate \(x^i \in \mathbb{R}^3\) representing the position of its C\(_\alpha\) atom. For simplicity, we do not include amino acid type or side-chain information in this work, focusing purely on the geometry of the C\(_\alpha\) atoms backbone. In addition to the coordinates, extra node features are initialised as positional embeddings derived from the amino acid index, along with time-conditioning features from the diffusion process (see \cref{subsec:architectures}). The full node feature vector is then obtained by concatenation:
+\begin{align*}
+    \text{Node feature} = \big[ \; \text{noises} \;\|\; \text{positional embedding} \;\|\; \text{time embedding} \;\big].
+\end{align*}
 
 \paragraph{Edges.}
-Edges are constructed using a radius graph: for each node \(i\), we connect edges to all neighbours \(j\) within a cutoff distance \(r\), subject to a maximum of \(k\) nearest neighbours. Formally,
+Edges are constructed using a radius graph: for each node \(i\in V\), we connect edges to all neighbours \(j\) within a cutoff distance \(r\), subject to a maximum of \(k\) nearest neighbours. Formally,
 \begin{align*}
-    (i,j) \in E \quad \Leftrightarrow \quad \|x_i - x_j\| \leq r \quad \text{and } j \text{ is among the } k \text{ closest to } i.
+    (i,j) \in E \quad \Leftrightarrow \quad \|x^i - x^j\| \leq r \quad \text{and}\quad j \text{ is among the } k \text{ closest to } i.
 \end{align*}
 This design ensures that local spatial relationships are captured without requiring a fixed sequence length. In addition to geometric edges, self-loops are included to stabilise message passing and allow each node to retain its own features. Edges are directed: for each \((i,j) \in E\), messages are passed from \(j\) (target) to \(i\) (source). This convention is consistent with the implementation in PyTorch Geometric, and we do not duplicate edges to create an undirected graph.
 
 \paragraph{Edge features.}
-For each edge \((i,j) \in E\), we compute a feature vector combining geometric and diffusion-time information:
+For each edge \((i,j) \in E\), we compute a feature vector combining geometric and diffusion-time information. The feature vector includes the following:
 \begin{itemize}
-    \item \textbf{Radial basis encoding:} The distance \(\|x_i - x_j\|\) is expanded into a vector using Gaussian radial basis functions,
+    \item \textbf{Radial basis encoding:} The distance \(\|x^i - x^j\|\) is expanded into a vector of length \(M\) using Gaussian radial basis functions,
         \begin{align*}
-            \phi_\ell(\|x_i - x_j\|) = \exp\!\left(-\frac{(\|x_i - x_j\|-c_\ell)^2}{2\sigma^2}\right),
+            \phi_\ell(\|x^i - x^j\|) = \exp\!\left(-\frac{(\|x^i - x^j\|-c_\ell)^2}{2\epsilon^2}\right),\quad \ell=1,...,M,
         \end{align*}
-        for centres \(\{c_\ell\}_{\ell=1}^M\) distributed uniformly in \([0,r]\). This provides a smooth representation of distances. 
+        where centres \(\{c_\ell\}_{\ell=1}^M\) are distributed uniformly between \(0\) and cutoff distance \(r\), length scale \(\epsilon=r/M\). This provides a smooth representation of distances. It is implemented via \texttt{e3nn.soft\_one\_hot\_linspace} from \citet{geiger2022E3nnEuclideanNeural,geiger2025EuclideanNeuralNetworks}.
     \item \textbf{Directional encoding:} The normalised vector
         \begin{align*}
-            d_{ij} = \frac{x_i - x_j}{\|x_i - x_j\|}
+            d^{\left(i,j\right)} = \frac{x^i - x^j}{\|x^i - x^j\|}\in \mathbb{R}^{3}
         \end{align*}
-        encodes the relative orientation of the neighbour. This directional feature allows the network to capture local geometry beyond mere distances. 
-    \item \textbf{Time embedding:} The diffusion timestep \(t\) is embedded into a high-dimensional feature \(e_t\) using sinusoidal positional encodings and projected through a linear layer. For each edge \((i,j)\), we associate \(e_t\) with the source node \(i\), enabling time-dependent conditioning of messages.
+        encodes the relative orientation of the neighbour. This directional feature allows the network to capture local geometry beyond mere distances \citep{watsonNovoDesignProtein2023}.
+    \item \textbf{Time embedding:} The diffusion timestep \(t\) is embedded into high-dimensional features (see \cref{subsec:architectures}) and projected through a linear layer. For each edge \((i,j)\), we associate the time embedding with the source node \(i\), enabling time-dependent conditioning of messages.
 \end{itemize}
 The full edge feature vector is then obtained by concatenation:
 \begin{align*}
-    h_{ij} = \big[ \; \text{radial basis} \;\|\; \text{direction} \;\|\; \text{time embedding} \;\big].
+    h_{ij} = \big[ \;\phi_{1:M}\;\|\; d^{\left(i,j\right)},\,\forall \left(i,j\right)\in E \;\|\; \text{time embedding} \;\big].
 \end{align*}
 
 \paragraph{Rationale.}
-This graph construction has several desirable properties: (i) it is permutation-invariant to residue ordering, (ii) it scales linearly with the number of residues \(L\), (iii) it incorporates both distance and orientation information, which are critical for protein geometry, and (iv) it enables variable-length backbones to be handled naturally without padding. These features make it well-suited for score-based diffusion over protein structures.
+This graph construction has several desirable properties: (i) it scales linearly with the number of amino acids (C\(_\alpha\) atoms) \(L\), (ii) it incorporates both distance and orientation information, which are critical for protein geometry, and (iii) it enables variable-length backbones to be handled naturally without padding. These features make it well-suited for score-based diffusion over protein structures.
 
-\subsection{Score Models: Architectures}\label{subsec:architectures}
-The score network \(s_\theta(x,t)\) is parameterised by a neural network that maps noisy protein backbones to score estimates. We explore several architectures of increasing complexity, culminating in a Transformer-based graph neural network that incorporates positional information.
+\subsection{Models Architectures}\label{subsec:architectures}
+The score network \(s_\theta(x,t)\) is parameterised by a neural network that maps noisy protein backbones to score estimates. We explore several architectures of increasing complexity, from a padding-based UNet model to a Graph Neural Network that utilises the graph representation.
 
-\paragraph{Baseline: UNet on padded coordinates.}
-As a baseline, we implemented a UNet architecture applied directly to backbone coordinates represented as sequences of fixed length. Each protein was zero-padded to a common maximum length, and the UNet operated on the resulting coordinate tensors. This design provides a simple convolutional benchmark but does not handle variable-length inputs naturally and discards explicit geometric relationships between residues. It serves primarily as a sanity check to compare graph-based approaches against a conventional deep learning model.
+\subsubsection{UNet Architecture on padded chains.}
+As a baseline, we implemented a UNet architecture \citep{ronneberger2015UNetConvolutionalNetworks} with one dimensional convolutional neural networks applied directly to backbone coordinates represented as sequences of fixed length. Each protein was zero-padded to a common maximum length, and the UNet operated on the resulting coordinate tensors. This design provides a simple convolutional benchmark but does not handle variable-length inputs naturally and discards explicit geometric relationships between amino acids. It serves primarily as a sanity check to compare graph-based approaches against a conventional deep learning model.
+
+\subsubsection{Graph Neural Network}
+Convolution layers via graph representation can be implemented via graph neural networks (GNN) \citep{scarselliGraphNeuralNetwork2009}.
+% Here should be some intro to GNN model architecture. by \citep{scarselliGraphNeuralNetwork2009}.
+\citet{PyG1.0,PyG2.0} implements multiple variation of GNNs. We will use the transformer GNN from \citet{shi2021MaskedLabelPrediction} to improve the expressiveness of message passing by introducing attention mechanism of edge features (along with node features node features \citep{velickovicGraphAttentionNetworks2018}) into graph learning.
+This makes the mechanism particularly well-suited for protein backbones, 
+where spatial context determines structural validity. % should improve this: why it is useful to use attention, what does it impeoved in general
 
 \paragraph{Baseline: TransformerConv without positional encodings.}
 Our second baseline employs a graph neural network built from \texttt{TransformerConv} layers~\cite{PyG1.0,PyG2.0}, which extend graph attention mechanisms with edge features. 

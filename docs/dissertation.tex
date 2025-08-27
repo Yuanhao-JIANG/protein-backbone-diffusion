@@ -461,7 +461,7 @@ The score network \(s_\theta(x,t)\) is parameterised by a neural network that ma
 \subsubsection{UNet Architecture on Padded Data}
 As a baseline, we implemented a UNet architecture \citep{ronneberger2015UNetConvolutionalNetworks} with one dimensional convolutional neural networks applied directly to backbone coordinates represented as sequences of fixed length. Each protein was zero-padded to a common maximum length, and the UNet operated on the resulting coordinate tensors. This design provides a simple convolutional benchmark but does not handle variable-length inputs naturally and discards explicit geometric relationships between amino acids. It serves primarily as a sanity check to compare graph-based approaches against a conventional deep learning model.
 
-\subsubsection{Graph Neural Network on Graph-Structured Data}
+\subsubsection{Graph Neural Network on Graph-Structured Data}\label{subsubsec:Transformer-GCN}
 \paragraph{Graph Neural Networks.}
 Convolutional layers on graph-structured data can be implemented via Graph Neural Networks (GNNs) \citep{scarselliGraphNeuralNetwork2009,gilmer2017NeuralMessagePassing,kipf2017SemiSupervisedClassificationGraph,battaglia2018RelationalInductiveBiases}, which extend the idea of neural networks to arbitrary graph domains. In this framework, each node updates its representation by aggregating information, or messages, from its neighbours, typically following the generic message passing scheme \citep{gilmer2017NeuralMessagePassing}
 \begin{align}\label{eq:GNN-message-passing}
@@ -506,9 +506,9 @@ This combination of residual connections and GraphNorm improves optimisation sta
 \subsection{Summary}\label{subsec:method-summary}
 In this section we described the methodology for adapting score-based diffusion models to the task of protein backbone generation. We began by outlining the structural constraints of proteins and motivated the use of a C\(_\alpha\)-only representation. We then formulated backbones as graphs, with nodes corresponding to amino acids and edges defined through a radius neighbourhood, augmented by radial basis encodings, directional features, and diffusion-time embeddings. This representation captures geometric information in a permutation-invariant manner while naturally supporting variable-length backbones.
 
-We constructed a graph neural network for the score network: a residual Transformer-based GCN with positional embeddings. The latter integrates geometric, sequential, and temporal information, supported by residual connections and GraphNorm.
+We constructed a graph neural network for the score network: a residual Transformer-based graph convolutional network with positional embeddings. The latter integrates geometric, sequential, and temporal information, supported by residual connections and GraphNorm.
 
-These methodological components together establish a principled framework for generative modelling of protein backbones using score-based diffusion. The next section presents experimental results, benchmarking these models on the CATH S40 dataset using both quantitative metrics (RMSD, TM-score) and qualitative structural visualisations.
+The next section presents experimental results, benchmarking these models on the CATH S40 dataset using both quantitative metrics (RMSD, TM-score) and qualitative structural visualisations.
 
 \clearpage
 
@@ -686,51 +686,47 @@ producing a collapsed global fold. While these individual cases are not sufficie
     \label{fig:samples}
 \end{figure}
 
-\subsection{Summary of Results}\label{subsec:results-summary}
-In summary, our experiments demonstrate that incorporating positional encodings into a Transformer-based graph neural network substantially improves backbone generation fidelity. Across quantitative metrics, the positional GCN achieved the lowest RMSD and highest TM-scores, outperforming both the UNet baseline and the GCN without positional information. Distributional analyses further showed that this model produces more consistent samples, while both quantitative results and qualitative visualisations highlighted that the absence of positional encodings often leads to collapsed or unrealistic folds. 
+\subsection{Summary}\label{subsec:experiments-summary}
+In summary, our experiments demonstrate that incorporating positional encodings into a Transformer-based graph convolutional network substantially improves backbone generation fidelity. Across quantitative metrics, the positional GCN achieved the lowest RMSD and highest TM-scores, outperforming both the UNet baseline and the GCN without positional information. Distributional analyses further showed that this model produces more consistent samples, while both quantitative results and qualitative visualisations highlighted that the absence of positional encodings often leads to collapsed or unrealistic folds.
 
-At the same time, challenges remain. RMSD and TM-scores still indicate a gap between generated and native backbones, particularly for long chains where deviations accumulate. Individual qualitative examples provide intuition but do not fully capture the diversity of generated structures, suggesting the need for larger-scale structural assessments. 
+At the same time, challenges remain. RMSD and TM-scores still indicate a gap between generated and native backbones, particularly for long chains where deviations accumulate. Individual qualitative examples provide intuition but do not fully capture the diversity of generated structures, suggesting the need for larger-scale structural assessments.
 
-Overall, these results underscore the importance of combining geometric and sequential information when modelling proteins with diffusion processes. The following chapter discusses the broader implications of these findings, outlines limitations of the present work, and suggests directions for future 
-research.
+Overall, these results underscore the importance of combining geometric and sequential information when modelling proteins with diffusion processes. The following chapter discusses the broader implications of these findings, outlines limitations of the present work, and suggests directions for future research.
 
 \clearpage
 
 \section{Discussion and Conclusion}\label{sec:Discussion_and_Conclusion}
 \subsection{Discussion of Results}\label{subsec:discussion-results}
-The experiments in Section~\ref{sec:Experiments} demonstrate that score-based diffusion models can generate protein backbones with meaningful structural similarity to native folds. Our main model, the TransformerConv GNN with positional embeddings, consistently outperformed the baselines in both RMSD and TM-score. This highlights the importance of incorporating sequential information into graph-based architectures, in addition to geometric edge features. 
-
-The ablation studies further show that GraphNorm provided more stable training than LayerNorm, particularly for variable-length proteins. Meanwhile, the UNet baseline performed poorly, underscoring the limitations of sequence-padded architectures that ignore protein geometry. 
+The experiments in \cref{sec:Experiments} demonstrate that score-based diffusion models can generate protein backbones with meaningful structural similarity to native folds. Among the evaluated architectures, the Transformer-based GCN with positional embeddings consistently outperformed the UNet baseline and the GCN without positional encodings in both RMSD and TM-score. This finding underscores the importance of incorporating sequential order into graph-based architectures, complementing geometric edge features such as distances and orientations.
 
 \subsection{Limitations}\label{subsec:limitations}
-While results are encouraging, several limitations must be acknowledged:
+While the results are encouraging, several limitations must be acknowledged:
 \begin{itemize}
-    \item \textbf{Evaluation metrics.} RMSD and TM-score measure similarity to a specific native fold of length \(L\). However, a generated backbone with high RMSD or low TM may still correspond to a physically plausible alternative fold. Thus, our evaluation measures reconstruction fidelity rather than unconditional validity.
-    \item \textbf{Backbone-only representation.} We model only C\(_\alpha\) atoms, ignoring side chains and residue types. This limits biological interpretability and applicability to sequence-conditioned design.
-    \item \textbf{Geometric constraints.} We did not enforce hard bond length or bond angle constraints during training or sampling. Although the model learns approximate geometry from data, explicit constraints would ensure chemical validity.
-    \item \textbf{Model scale.} Our models are relatively small compared to state-of-the-art generative protein models. Larger networks with equivariant layers or global attention may further improve results.
+    \item \textbf{Geometric constraints.} No explicit bond length or bond angle constraints were imposed during training or sampling. Although the model learns approximate geometry from data, explicit constraints would ensure chemical validity and prevent subtle violations of backbone stereochemistry \citep{branden2012IntroductionProteinStructure,creighton1993proteins,watsonNovoDesignProtein2023}.
+    \item \textbf{Backbone-only representation.} Only C\(_\alpha\) atoms were modelled, ignoring side chains and residue types. This simplifies the state space but limits biological interpretability and applicability to sequence-conditioned design tasks.
+    \item \textbf{Model scale.} The models used in this study are relatively small compared to state-of-the-art generative protein models \citep{wuProteinStructureGeneration2024,watsonNovoDesignProtein2023}. While we demonstrated feasibility even for backbones exceeding 1000 amino acids, scaling to larger networks with equivariant layers, global attention, or pretraining on larger structural databases may further improve results.
+    \item \textbf{Evaluation metrics.} RMSD and TM-score measure fidelity to a specific native fold of length \(L\). However, a generated backbone with high RMSD or low TM may still correspond to a physically plausible alternative fold. Thus, our evaluation measures reconstruction fidelity rather than unconditional structural validity.
 \end{itemize}
 
-\subsection{Future Work}\label{subsec:future-work}
-Several promising directions follow from this study:
-\begin{itemize}
-    \item \textbf{Constraint integration.} Future models could enforce bond lengths, bond angles, and chirality constraints explicitly within the diffusion dynamics.
-    \item \textbf{Sequence conditioning.} Extending the framework to sequence-to-structure generation would enable protein design tasks directly relevant to biology and drug discovery.
-    \item \textbf{Advanced architectures.} Incorporating SE(3)-equivariant GNNs, Graph GPS layers, or global attention could capture long-range dependencies more effectively.
-    \item \textbf{Evaluation metrics.} Beyond RMSD and TM-score, metrics that capture physical validity or functional plausibility would provide a more nuanced evaluation of generated backbones.
-\end{itemize}
+\subsection{Related Work and Future Directions}\label{subsec:future-work}
+Recent years have seen rapid progress in generative modelling of protein structures. Diffusion-based methods in particular have achieved state-of-the-art results: \citet{watsonNovoDesignProtein2023} demonstrated that RoseTTAFold-based diffusion models can generate novel proteins with designed functions, while FoldingDiff \citep{wuProteinStructureGeneration2024} applied score-based diffusion directly to backbone coordinates. At the architectural level, SE(3)-equivariant neural networks \citep{satorras2021EquivariantGraphNeural,geiger2022E3nnEuclideanNeural} have been proposed to improve geometric fidelity and long-range modelling, building on earlier work in equivariant tensor field networks \citep{thomasTensorFieldNetworks2018,weiler3DSteerableCNNs2018,kondorClebschGordanNetsFully2018}. Inspired by these developments, as well as the limitations identified in this dissertation, several promising directions follow from this study.
+
+\paragraph{Constraint integration.}
+One natural extension is to incorporate stereochemical constraints directly into the generative process. In the present work, bond lengths, bond angles, and other relavant structural constraints were only learned approximately from data. Future models could embed these constraints within the diffusion dynamics, ensuring that generated samples lie on a physically valid manifold. Recent advances in Riemannian score-based generative modelling \citep{debortoliRiemannianScoreBasedGenerative2022,huang2022RiemannianDiffusionModels,chungImprovingDiffusionModels2022} provide a principled framework for defining diffusion processes and training objectives on constrained manifolds, which could be adapted to enforce protein backbone geometry explicitly. 
+
+\paragraph{Advanced architectures.}
+Another promising direction is to adopt architectures with built-in geometric equivariance. While the graph neural networks capture local geometry via edge features, it is not strictly equivariant under rotations or reflections. By contrast, SE(3)-equivariant GNNs \citep{thomasTensorFieldNetworks2018,weiler3DSteerableCNNs2018,kondorClebschGordanNetsFully2018,geiger2022E3nnEuclideanNeural,geiger2025EuclideanNeuralNetworks} encode these symmetries by construction, ensuring that predictions transform consistently with input coordinates. This property is particularly attractive for protein backbones, where physical laws are invariant to global orientation. Recent works \citep{yimDiffusionModelsProtein2024} have begun exploring this idea in the context of protein diffusion models.
 
 \subsection{Conclusion}\label{subsec:conclusion}
-This dissertation has presented an adaptation of score-based diffusion models to the task of protein backbone generation. We derived the theoretical foundations of score-based diffusion, constructed graph-based representations of protein structures, and developed several neural architectures for score estimation. Through experiments on the CATH S40 dataset, we demonstrated that a residual TransformerConv GNN with positional embeddings achieves improved performance over both non-graph and graph baselines. 
+This dissertation has explored the use of score-based diffusion models for protein backbone generation. We outlined the theoretical background of diffusion models, developed a graph-based representation of protein backbones, and implemented several neural architectures for score estimation. Experiments on the CATH S40 dataset showed that a residual Transformer-based GCN with positional embeddings achieved improved performance over both a UNet baseline and a graph model without positional information.
 
-Overall, this work illustrates the potential of diffusion generative models for structural biology and provides a foundation for future research in protein design. By integrating probabilistic rigour with graph-based learning, score-based diffusion offers a principled and flexible framework for exploring the immense space of protein structures.
+These results suggest that diffusion models combined with graph-based architectures offer a viable approach to coarse-grained protein structure generation. Although the models used here are relatively small in scale, the findings highlight the value of incorporating sequential information into graph representations and point toward directions for improvement, including constraint integration, larger architectures, and sequence conditioning.
 
 \clearpage
 
-% \section*{Appendix}
 \appendix
 \section{Code Appendix}
-% This appendix provides excerpts from the implementation of the graph neural network (GNN) model described in the main text. The code is written in Python and makes use of standard machine learning libraries, including PyTorch and PyTorch Geometric (PyG). For readability, only the core components of the model are shown here. The complete source code used in this dissertation, including data preprocessing, training scripts, and evaluation utilities, is available in the accompanying GitHub repository: \url{https://github.com/Yuanhao-JIANG}. %TODO: link here
+% This appendix provides excerpts from the implementation of the graph neural network (GNN) model described in the main text (\cref{subsubsec:Transformer-GCN}). The code is written in Python and makes use of standard machine learning libraries, including PyTorch and PyTorch Geometric (PyG) \citep{PyG1.0,PyG2.0}. For readability, only the core components of the model are shown here. The complete source code used in this dissertation, including data preprocessing, training and sampling scripts, and relavant utilities, is available in the accompanying GitHub repository: \url{TODO}. %TODO: link here
 % \begin{minted}[linenos,breaklines,breaksymbolleft={},breaksymbolright={},frame=single,framesep=2mm,baselinestretch=1.05,]{python}
 % class GraphTransformerScoreModel(nn.Module):
 %     def __init__(self, hidden_dim=128, pos_embed_dim=128, t_embed_dim=128, t_edge_proj_dim=16, num_layers=5, heads=8, max_num_neighbors=500, radius=5, num_basis=32):
@@ -794,12 +790,6 @@ Overall, this work illustrates the potential of diffusion generative models for 
 %         self.act = nn.SiLU()
 
 %     def forward(self, coords, batch, t):
-%         """
-%         Args:
-%             coords: [N, 3] - all coordinates in batch
-%             batch: [N] - batch index for each node
-%             t: [B] - time for each structure
-%         """
 %         # Positional encoding (based on position index in the chain)
 %         num_graphs = batch.max().item() + 1
 %         pos_index = torch.empty_like(batch, dtype=torch.float)
@@ -818,43 +808,22 @@ Overall, this work illustrates the potential of diffusion generative models for 
 %         # Build radius graph to get the edge index
 %         edge_index = radius_graph(coords, r=self.radius, batch=batch, max_num_neighbors=self.max_num_neighbors, loop=True, flow='target_to_source')
 
-%         # messages: src -> dst
-%         src, dst = edge_index[0], edge_index[1]
-
-%         # Edge geometry for src->dst
-%         edge_vec = coords[src] - coords[dst]  # direction: src -> dst
-%         edge_len = edge_vec.norm(dim=-1)  # [E]
-%         edge_dir = F.normalize(edge_vec, dim=-1)  # [E, 3]
-%         edge_dir = torch.nan_to_num(edge_dir, nan=0.0)  # guard self-loops (zero vec)
+%         # edge attributes
+%         edge_vec = coords[edge_index[0]] - coords[edge_index[1]]
+%         edge_dir = F.normalize(edge_vec, dim=-1)
+%         edge_length = edge_vec.norm(dim=-1)
 %         edge_scalar = soft_one_hot_linspace(
-%             edge_len,
+%             edge_length,
 %             start=0.0,
 %             end=self.radius,
 %             number=self.num_basis,
 %             basis='gaussian',
 %             cutoff=True
-%         )  # [E, num_basis]
-
-%         # Attributes for forward edges
-%         edge_attr_fwd = torch.cat([
-%             edge_scalar,
-%             edge_dir,
-%             self.t_edge_proj(t_feat[batch][src])
-%         ], dim=-1)  # [E, num_basis + 3 + t_edge_proj_dim]
-
-%         # Build reverse edges and attributes (dst->src)
-%         edge_index_rev = torch.stack([dst, src], dim=0)
-
-%         # Attributes for reverse edges: same scaler, the direction flips sign, time feature comes from the new source (= old dst)
-%         edge_attr_rev = torch.cat([
-%             edge_scalar,  # same lengths/basis
-%             -edge_dir,  # flip direction
-%             self.t_edge_proj(t_feat[batch][dst])  # t from the reverse source
-%         ], dim=-1)
-
-%         # Concatenate to make the graph bidirectional
-%         edge_index = torch.cat([edge_index, edge_index_rev], dim=1)
-%         edge_attr = torch.cat([edge_attr_fwd, edge_attr_rev], dim=0)
+%         )  # [num_edges, num_basis]
+%         t_edge = t_feat[batch][edge_index[0]]   # [num_edges, t_embed_dim]
+%         t_edge = self.t_edge_proj(t_edge)   # [num_edges, t_edge_proj_dim]
+%         # Combine with direction vectors
+%         edge_attr = torch.cat([edge_scalar, edge_dir, t_edge], dim=-1)  # [num_edges, num_basis + 3 + t_edge_proj_dim]
 
 %         for conv, norm, pos_mlp, t_mlp in zip(self.convs, self.norms, self.pos_mlps, self.t_mlps):
 %             t_per_node = t_mlp(t_feat)[batch]  # [N, t_embed_dim]
@@ -870,6 +839,30 @@ Overall, this work illustrates the potential of diffusion generative models for 
 %             h = self.act(norm(h, batch) + h_res)
 
 %         return self.output_proj(h)
+
+
+% class SinusoidalEncoding(nn.Module):
+%     def __init__(self, embed_dim=128):
+%         super().__init__()
+%         self.embed_dim = embed_dim
+
+%     def forward(self, pos_index):
+%         i = torch.arange(self.embed_dim, device=pos_index.device)
+%         angle_rates = 1 / torch.pow(10000, (2 * (i // 2)) / self.embed_dim)
+%         angle_rads = pos_index * angle_rates
+%         angle_rads[:, 0::2] = torch.sin(angle_rads[:, 0::2])
+%         angle_rads[:, 1::2] = torch.cos(angle_rads[:, 1::2])
+%         return angle_rads
+
+
+% class GaussianFourierProjection(nn.Module):
+%     def __init__(self, embed_dim, scale=30.):   # embed_dim must be divisible by 2
+%         super().__init__()
+%         self.W = nn.Parameter(torch.randn(embed_dim // 2) * scale, requires_grad=False)
+
+%     def forward(self, t):
+%         x_proj = 2 * torch.pi * t * self.W  # [B, D/2]
+%         return torch.cat([torch.sin(x_proj), torch.cos(x_proj)], dim=-1)
 % \end{minted}
 
 \clearpage

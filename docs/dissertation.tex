@@ -88,9 +88,7 @@ Date:...................................
 \end{center}
 \clearpage
 \begin{abstract}
-
-The abstract should go here.
-
+    Diffusion models have recently emerged as a powerful class of generative models, achieving strong performance in domains such as images, audio, and molecules. This dissertation adapts a score-based diffusion framework to protein structures, representing backbones as graphs of C\(_\alpha\) atoms connected by spatial and sequential edges. Several architectures are implemented as score models, including a UNet baseline on padded sequences and Transformer-based graph neural networks with and without sinusoidal positional embeddings of amino acid indices. Experiments are conducted on the CATH S40 dataset, a benchmark of diverse protein domains. Quantitative evaluation with RMSD and TM-score shows that the Transformer-based GNN with positional embeddings consistently outperforms both the UNet baseline and the graph model without positional information. Distributional analyses and qualitative visualisations further demonstrate that positional encoding plays a critical role in maintaining sequential structure and improving overall backbone fidelity. While the models are modest in scale and focus only on C\(_\alpha\) atoms, the results suggest that score-based diffusion combined with graph representations is a viable approach to protein backbone generation and highlight the importance of incorporating sequential information in graph models.
 \end{abstract}
 \clearpage
 \vspace*{2in}
@@ -98,7 +96,11 @@ The abstract should go here.
 \textbf{Acknowledgements}
 \end{center}
 
-I would like to thank the following:
+I would like to express my sincere gratitude to my supervisor, Professor George 
+Deligiannidis, for his guidance and support throughout this dissertation. I would 
+also like to sincerely thank my family and friends for their encouragement and 
+patience during my studies.
+
 \clearpage
 
 \tableofcontents
@@ -725,144 +727,144 @@ These results suggest that diffusion models combined with graph-based architectu
 
 \appendix
 \section{Code Appendix}
-% This appendix provides excerpts from the implementation of the graph neural network (GNN) model described in the main text (\cref{subsubsec:Transformer-GCN}). The code is written in Python and makes use of standard machine learning libraries, including PyTorch and PyTorch Geometric (PyG) \citep{PyG1.0,PyG2.0}. For readability, only the core components of the model are shown here. The complete source code used in this dissertation, including data preprocessing, training and sampling scripts, and relavant utilities, is available in the accompanying GitHub repository: \url{TODO}. %TODO: link here
-% \begin{minted}[linenos,breaklines,breaksymbolleft={},breaksymbolright={},frame=single,framesep=2mm,baselinestretch=1.05,]{python}
-% class GraphTransformerScoreModel(nn.Module):
-%     def __init__(self, hidden_dim=128, pos_embed_dim=128, t_embed_dim=128, t_edge_proj_dim=16, num_layers=5, heads=8, max_num_neighbors=500, radius=5, num_basis=32):
-%         super().__init__()
-%         self.max_num_neighbors = max_num_neighbors
-%         self.radius = radius
-%         self.num_basis = num_basis
-%         self.heads = heads
+This appendix provides excerpts from the implementation of the graph neural network (GNN) model described in the main text (\cref{subsubsec:Transformer-GCN}). The code is written in Python and makes use of standard machine learning libraries, including PyTorch and PyTorch Geometric (PyG) \citep{PyG1.0,PyG2.0}. For readability, only the core components of the model are shown here. The complete source code used in this dissertation, including data preprocessing, training and sampling scripts, and relavant utilities, is available in the accompanying GitHub repository: \url{TODO: Make Public Repository}.
+\begin{minted}[linenos,breaklines,breaksymbolleft={},breaksymbolright={},frame=single,framesep=2mm,baselinestretch=1.05,]{python}
+class GraphTransformerScoreModel(nn.Module):
+    def __init__(self, hidden_dim=128, pos_embed_dim=128, t_embed_dim=128, t_edge_proj_dim=16, num_layers=5, heads=8, max_num_neighbors=500, radius=5, num_basis=32):
+        super().__init__()
+        self.max_num_neighbors = max_num_neighbors
+        self.radius = radius
+        self.num_basis = num_basis
+        self.heads = heads
 
-%         # position embedding
-%         self.pos_embed = nn.Sequential(
-%             SinusoidalEncoding(embed_dim=pos_embed_dim),
-%             nn.Linear(pos_embed_dim, pos_embed_dim)
-%         )
+        # position embedding
+        self.pos_embed = nn.Sequential(
+            SinusoidalEncoding(embed_dim=pos_embed_dim),
+            nn.Linear(pos_embed_dim, pos_embed_dim)
+        )
 
-%         # position MLPs per layer
-%         self.pos_mlps = nn.ModuleList([
-%             nn.Linear(pos_embed_dim, pos_embed_dim) for _ in range(num_layers)
-%         ])
+        # position MLPs per layer
+        self.pos_mlps = nn.ModuleList([
+            nn.Linear(pos_embed_dim, pos_embed_dim) for _ in range(num_layers)
+        ])
 
-%         # Time embedding
-%         self.t_embed = nn.Sequential(
-%             GaussianFourierProjection(t_embed_dim, scale=16.),
-%             nn.Linear(t_embed_dim, t_embed_dim),
-%         )
+        # Time embedding
+        self.t_embed = nn.Sequential(
+            GaussianFourierProjection(t_embed_dim, scale=16.),
+            nn.Linear(t_embed_dim, t_embed_dim),
+        )
 
-%         self.t_edge_proj = nn.Linear(t_embed_dim, t_edge_proj_dim)
+        self.t_edge_proj = nn.Linear(t_embed_dim, t_edge_proj_dim)
 
-%         # Time MLPs per layer
-%         self.t_mlps = nn.ModuleList([
-%             nn.Linear(t_embed_dim, t_embed_dim) for _ in range(num_layers)
-%         ])
+        # Time MLPs per layer
+        self.t_mlps = nn.ModuleList([
+            nn.Linear(t_embed_dim, t_embed_dim) for _ in range(num_layers)
+        ])
 
-%         # TransformerConv layers
-%         in_channels = hidden_dim + pos_embed_dim + t_embed_dim
-%         self.convs = nn.ModuleList([
-%             TransformerConv(
-%                 in_channels=in_channels,
-%                 out_channels=hidden_dim // heads,
-%                 heads=heads,
-%                 concat=True,
-%                 beta=True,
-%                 edge_dim=self.num_basis + 3 + t_edge_proj_dim
-%             )
-%             for _ in range(num_layers)
-%         ])
+        # TransformerConv layers
+        in_channels = hidden_dim + pos_embed_dim + t_embed_dim
+        self.convs = nn.ModuleList([
+            TransformerConv(
+                in_channels=in_channels,
+                out_channels=hidden_dim // heads,
+                heads=heads,
+                concat=True,
+                beta=True,
+                edge_dim=self.num_basis + 3 + t_edge_proj_dim
+            )
+            for _ in range(num_layers)
+        ])
 
-%         # Norm layers
-%         self.norms = nn.ModuleList([
-%             GraphNorm(hidden_dim) for _ in range(num_layers)
-%         ])
+        # Norm layers
+        self.norms = nn.ModuleList([
+            GraphNorm(hidden_dim) for _ in range(num_layers)
+        ])
 
-%         # Input/output projection
-%         self.input_proj = nn.Linear(3, hidden_dim)
-%         self.output_proj = nn.Sequential(
-%             nn.Linear(hidden_dim, hidden_dim),
-%             nn.SiLU(),
-%             nn.Linear(hidden_dim, 3)
-%         )
+        # Input/output projection
+        self.input_proj = nn.Linear(3, hidden_dim)
+        self.output_proj = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.SiLU(),
+            nn.Linear(hidden_dim, 3)
+        )
 
-%         self.act = nn.SiLU()
+        self.act = nn.SiLU()
 
-%     def forward(self, coords, batch, t):
-%         # Positional encoding (based on position index in the chain)
-%         num_graphs = batch.max().item() + 1
-%         pos_index = torch.empty_like(batch, dtype=torch.float)
-%         for i in range(num_graphs):
-%             mask = (batch == i)
-%             count = mask.sum()
-%             pos_index[mask] = torch.linspace(0, 1, steps=count, device=coords.device)
-%         pos_feat = self.act(self.pos_embed(pos_index[:, None]))  # [N, pos_embed_dim]
+    def forward(self, coords, batch, t):
+        # Positional encoding (based on position index in the chain)
+        num_graphs = batch.max().item() + 1
+        pos_index = torch.empty_like(batch, dtype=torch.float)
+        for i in range(num_graphs):
+            mask = (batch == i)
+            count = mask.sum()
+            pos_index[mask] = torch.linspace(0, 1, steps=count, device=coords.device)
+        pos_feat = self.act(self.pos_embed(pos_index[:, None]))  # [N, pos_embed_dim]
 
-%         # Time embedding
-%         t_feat = self.act(self.t_embed(t[:, None]))  # [B, t_embed_dim]
+        # Time embedding
+        t_feat = self.act(self.t_embed(t[:, None]))  # [B, t_embed_dim]
 
-%         # Node features
-%         h = self.input_proj(coords)  # [N, hidden_dim]
+        # Node features
+        h = self.input_proj(coords)  # [N, hidden_dim]
 
-%         # Build radius graph to get the edge index
-%         edge_index = radius_graph(coords, r=self.radius, batch=batch, max_num_neighbors=self.max_num_neighbors, loop=True, flow='target_to_source')
+        # Build radius graph to get the edge index
+        edge_index = radius_graph(coords, r=self.radius, batch=batch, max_num_neighbors=self.max_num_neighbors, loop=True, flow='target_to_source')
 
-%         # edge attributes
-%         edge_vec = coords[edge_index[0]] - coords[edge_index[1]]
-%         edge_dir = F.normalize(edge_vec, dim=-1)
-%         edge_length = edge_vec.norm(dim=-1)
-%         edge_scalar = soft_one_hot_linspace(
-%             edge_length,
-%             start=0.0,
-%             end=self.radius,
-%             number=self.num_basis,
-%             basis='gaussian',
-%             cutoff=True
-%         )  # [num_edges, num_basis]
-%         t_edge = t_feat[batch][edge_index[0]]   # [num_edges, t_embed_dim]
-%         t_edge = self.t_edge_proj(t_edge)   # [num_edges, t_edge_proj_dim]
-%         # Combine with direction vectors
-%         edge_attr = torch.cat([edge_scalar, edge_dir, t_edge], dim=-1)  # [num_edges, num_basis + 3 + t_edge_proj_dim]
+        # edge attributes
+        edge_vec = coords[edge_index[0]] - coords[edge_index[1]]
+        edge_dir = F.normalize(edge_vec, dim=-1)
+        edge_length = edge_vec.norm(dim=-1)
+        edge_scalar = soft_one_hot_linspace(
+            edge_length,
+            start=0.0,
+            end=self.radius,
+            number=self.num_basis,
+            basis='gaussian',
+            cutoff=True
+        )  # [num_edges, num_basis]
+        t_edge = t_feat[batch][edge_index[0]]   # [num_edges, t_embed_dim]
+        t_edge = self.t_edge_proj(t_edge)   # [num_edges, t_edge_proj_dim]
+        # Combine with direction vectors
+        edge_attr = torch.cat([edge_scalar, edge_dir, t_edge], dim=-1)  # [num_edges, num_basis + 3 + t_edge_proj_dim]
 
-%         for conv, norm, pos_mlp, t_mlp in zip(self.convs, self.norms, self.pos_mlps, self.t_mlps):
-%             t_per_node = t_mlp(t_feat)[batch]  # [N, t_embed_dim]
-%             pos = pos_mlp(pos_feat)
+        for conv, norm, pos_mlp, t_mlp in zip(self.convs, self.norms, self.pos_mlps, self.t_mlps):
+            t_per_node = t_mlp(t_feat)[batch]  # [N, t_embed_dim]
+            pos = pos_mlp(pos_feat)
 
-%             # Residual
-%             h_res = h
+            # Residual
+            h_res = h
 
-%             # Concat time + feature
-%             h = conv(torch.cat([h, pos, t_per_node], dim=-1), edge_index=edge_index, edge_attr=edge_attr)
+            # Concat time + feature
+            h = conv(torch.cat([h, pos, t_per_node], dim=-1), edge_index=edge_index, edge_attr=edge_attr)
 
-%             # Normalization + residual
-%             h = self.act(norm(h, batch) + h_res)
+            # Normalization + residual
+            h = self.act(norm(h, batch) + h_res)
 
-%         return self.output_proj(h)
-
-
-% class SinusoidalEncoding(nn.Module):
-%     def __init__(self, embed_dim=128):
-%         super().__init__()
-%         self.embed_dim = embed_dim
-
-%     def forward(self, pos_index):
-%         i = torch.arange(self.embed_dim, device=pos_index.device)
-%         angle_rates = 1 / torch.pow(10000, (2 * (i // 2)) / self.embed_dim)
-%         angle_rads = pos_index * angle_rates
-%         angle_rads[:, 0::2] = torch.sin(angle_rads[:, 0::2])
-%         angle_rads[:, 1::2] = torch.cos(angle_rads[:, 1::2])
-%         return angle_rads
+        return self.output_proj(h)
 
 
-% class GaussianFourierProjection(nn.Module):
-%     def __init__(self, embed_dim, scale=30.):   # embed_dim must be divisible by 2
-%         super().__init__()
-%         self.W = nn.Parameter(torch.randn(embed_dim // 2) * scale, requires_grad=False)
+class SinusoidalEncoding(nn.Module):
+    def __init__(self, embed_dim=128):
+        super().__init__()
+        self.embed_dim = embed_dim
 
-%     def forward(self, t):
-%         x_proj = 2 * torch.pi * t * self.W  # [B, D/2]
-%         return torch.cat([torch.sin(x_proj), torch.cos(x_proj)], dim=-1)
-% \end{minted}
+    def forward(self, pos_index):
+        i = torch.arange(self.embed_dim, device=pos_index.device)
+        angle_rates = 1 / torch.pow(10000, (2 * (i // 2)) / self.embed_dim)
+        angle_rads = pos_index * angle_rates
+        angle_rads[:, 0::2] = torch.sin(angle_rads[:, 0::2])
+        angle_rads[:, 1::2] = torch.cos(angle_rads[:, 1::2])
+        return angle_rads
+
+
+class GaussianFourierProjection(nn.Module):
+    def __init__(self, embed_dim, scale=30.):   # embed_dim must be divisible by 2
+        super().__init__()
+        self.W = nn.Parameter(torch.randn(embed_dim // 2) * scale, requires_grad=False)
+
+    def forward(self, t):
+        x_proj = 2 * torch.pi * t * self.W  # [B, D/2]
+        return torch.cat([torch.sin(x_proj), torch.cos(x_proj)], dim=-1)
+\end{minted}
 
 \clearpage
 

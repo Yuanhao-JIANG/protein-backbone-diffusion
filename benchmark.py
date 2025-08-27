@@ -390,7 +390,7 @@ def plot_metric_distribution(
     add_ref_lines: bool = True,
     density: bool = True,
     alpha: float = 0.35,
-    figsize: tuple[int, int] = (8, 5),
+    figsize: tuple = (8, 5),
     save_path: Optional[str] = None,
 ):
     """
@@ -449,7 +449,7 @@ def plot_metric_box_violin(
     kind: str = "box",  # 'box' or 'violin'
     showfliers: bool = False,
     add_ref_lines: bool = True,
-    figsize: tuple[int, int] = (8, 5),
+    figsize: tuple = (8, 5),
     save_path: Optional[str] = None,
 ):
     """
@@ -485,8 +485,6 @@ def plot_metric_box_violin(
             showextrema=True,
             showmedians=True,
         )
-        # X tick labels under violins
-        plt.xticks(range(1, len(models) + 1), models, rotation=0)
     else:
         raise ValueError("kind must be 'box' or 'violin'")
 
@@ -494,6 +492,7 @@ def plot_metric_box_violin(
         for v in _ref_lines_for_metric(metric_col):
             plt.axhline(v, linestyle="--", linewidth=1)
 
+    plt.xticks(range(1, len(models) + 1), models, rotation=20)
     plt.ylabel(metric_col.upper())
     plt.title(f"{metric_col.upper()} by model")
     plt.tight_layout()
@@ -511,7 +510,7 @@ def plot_metric_vs_length(
     jitter: float = 0.0,
     add_linear_trend: bool = True,
     add_ref_lines: bool = True,
-    figsize: tuple[int, int] = (8, 5),
+    figsize: tuple = (8, 5),
     save_path: Optional[str] = None,
 ):
     """
@@ -558,9 +557,9 @@ def plot_metric_vs_length(
         for v in _ref_lines_for_metric(metric_col):
             plt.axhline(v, linestyle="--", linewidth=1)
 
-    plt.xlabel("L (residues)")
+    plt.xlabel("Backbone Length (L)")
     plt.ylabel(metric_col.upper())
-    plt.title(f"{metric_col.upper()} vs length (L)")
+    plt.title(f"{metric_col.upper()} vs L")
     plt.legend()
     plt.tight_layout()
     if save_path:

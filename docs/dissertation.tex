@@ -566,84 +566,116 @@ To complement RMSD, we use TM-score \citep{zhang2004ScoringFunctionAutomated,xu2
 \end{remark}
 
 \subsection{Quantitative Results}\label{subsec:results}
-% --- To fill in ---
-% Insert a main comparison table here:
-% Model | RMSD (mean ± std) | TM-score (mean ± std) | Error
-% - TransformerConv + PosEnc (main)
-% - TransformerConv w/o PosEnc (baseline)
-% - UNet (baseline)
-% You may also add per-length results if relevant.
+We benchmarked three model variants: (i) a UNet baseline on padded coordinate 
+sequences, (ii) a Transformer-based graph convolutional network with and without positional 
+encodings, as detailed in \cref{subsec:architectures}. Evaluation was performed using RMSD and TM-score, as described in \cref{subsec:metrics}.
+
+\paragraph{Overall performance.}
+The summary statistics of overall performance is reported in \cref{tab:quant-results}. From the results, the Transformer-based graph convolutional network with positional encodings achieves the best overall performance, with the lowest RMSD (\(16.39 \pm 4.29\) \AA) and highest TM-score (\(0.272 \pm 0.041\)). By contrast, the same architecture without positional encodings performs substantially worse, highlighting the importance of incorporating sequential information in addition to geometric neighbourhoods. Interestingly, the UNet baseline outperforms the GCN without positional encodings, despite its simplistic design and reliance on padded sequences. This suggests that while graph representations capture local geometry, they require positional encodings to effectively model the directional structure of protein backbones.
 
 \begin{table}[htbp]
-\centering
-\caption{Quantitative performance on the CATH S40 test set. Values are mean ± standard deviation across structures.}
-\label{tab:results}
-\begin{tabular}{lccc}
-\hline
-Model & RMSD (\(\downarrow\)) & TM-score (\(\uparrow\)) & Error (\(\downarrow\)) \\
-\hline
-TransformerConv + PosEnc (ours) &   &   &   \\
-TransformerConv (no PosEnc)     &   &   &   \\
-UNet (padded)                   &   &   &   \\
-\hline
-\end{tabular}
+    \centering
+    \caption{Quantitative evaluation of backbone reconstruction fidelity. 
+    Values reported are mean \(\pm\) standard deviation.}
+    \label{tab:quant-results}
+    \begin{tabular}{lcc}
+        \toprule
+        Model & RMSD (\AA) & TM-score \\
+        \midrule
+        UNet baseline & \(17.230 \pm 4.699\) & \(0.264 \pm 0.041\) \\
+        GCN w/o positional encoding & \(20.459 \pm 4.985\) & \(0.145 \pm 0.023\) \\
+        GCN w/ positional encoding & \(16.394 \pm 4.294\) & \(0.272 \pm 0.041\) \\
+        \bottomrule
+    \end{tabular}
 \end{table}
 
 \paragraph{Distribution analysis.}
-In addition to summary statistics, we plot the distribution of RMSD and TM-scores across the dataset (Figure~\ref{fig:rmsd-hist} and Figure~\ref{fig:tm-hist}). 
-These histograms reveal the variability of model performance across different protein domains.
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.7\linewidth]{rmsd_dist.png}
-\caption{Distribution of RMSD values across test structures. Lower is better.}
-\label{fig:rmsd-hist}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.7\linewidth]{tm_dist.png}
-\caption{Distribution of TM-scores across test structures. Higher is better.}
-\label{fig:tm-hist}
-\end{figure}
-
-\paragraph{Scatter plots.}
-We further analyse performance as a function of backbone length \(L\), plotting RMSD and TM-score versus \(L\) (Figure~\ref{fig:rmsd-vs-l}, Figure~\ref{fig:tm-vs-l}).
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.7\linewidth]{rmsd_vs_L.png}
-\caption{RMSD versus backbone length.}
-\label{fig:rmsd-vs-l}
-\end{figure}
-
-\begin{figure}[htbp]
-\centering
-\includegraphics[width=0.7\linewidth]{tm_vs_L.png}
-\caption{TM-score versus backbone length.}
-\label{fig:tm-vs-l}
-\end{figure}
-
-\subsection{Ablation Studies}
-\label{subsec:ablations}
-
-To isolate the effect of architectural components, we conducted ablations:
-\begin{itemize}
-    \item \textbf{Positional encodings:} comparing TransformerConv with and without positional embeddings.
-    \item \textbf{Normalisation:} GraphNorm versus LayerNorm.
-\end{itemize}
-
-% --- Insert small comparison table or plots here. ---
-
-\subsection{Qualitative Visualisation}\label{subsec:visualisation}
-Finally, we present visualisations of generated backbones using PyMOL. For each test structure, we overlay the generated backbone with the native structure (Figure~\ref{fig:pymol-example}), highlighting both successes (low RMSD/high TM) and failures (plausible but non-native folds).
+In addition to summary statistics, we plot the distribution plot and box plot of RMSD and TM-scores across the dataset, \cref{fig:rmsd-dist-box-plot,fig:tm-dist-box-plot}. These results reinforce the trends observed in \cref{tab:quant-results}. The GCN model with positional encodings exhibits the most favourable distribution, with RMSD values concentrated toward lower errors and TM-scores shifted toward higher similarity. The UNet baseline, although simpler, produces a broader distribution with a heavier tail of poorly reconstructed examples. By contrast, the GCN without positional encodings consistently underperforms, with TM-scores clustered around low values and RMSD heavily shifted left, demonstrating that sequential information is critical for modelling backbone geometry.
 
 \begin{figure}[htbp]
     \centering
-    % \includegraphics[width=0.6\linewidth]{pymol_example.png}
-    \includegraphics[width=0.6\linewidth]{example-image}
-    \caption{Example PyMOL visualisation of generated backbone (blue) aligned with native structure (grey).}
-    \label{fig:pymol-example}
+    \begin{subfigure}[b]{0.57\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{rmsd_dist.png}
+        \caption{Distribution of RMSD.}
+        \label{fig:rmsd-hist}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.42\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{rmsd_box.png}
+        \caption{Box plot of RMSD.}
+        \label{fig:rmsd-box}
+    \end{subfigure}
+    \caption{Distribution and box plot of RMSD values across test structures. Lower is better.}
+    \label{fig:rmsd-dist-box-plot}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.57\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{tm_dist.png}
+        \caption{Distribution of TM-score.}
+        \label{fig:tm-hist}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.42\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{tm_box.png}
+        \caption{Box plot of TM-score.}
+        \label{fig:tm-box}
+    \end{subfigure}
+    \caption{Distribution and box plot of TM-scores across test structures. Higher is better.}
+    \label{fig:tm-dist-box-plot}
+\end{figure}
+
+We further analyse model performance as a function of backbone length \(L\), plotting RMSD and TM-score versus \(L\) in \cref{fig:rmsd-tm-vs-l}. Both metrics exhibit a clear dependence on sequence length: reconstruction error (RMSD) increases with \(L\), while TM-score tends to decrease for longer proteins. This trend reflects the inherent difficulty of maintaining structural fidelity over extended chains, where deviations accumulate and long-range dependencies become harder to capture.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.495\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{rmsd_vs_L.png}
+        \caption{RMSD vs. \(L\).}
+        \label{fig:rmsd-vs-l}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.495\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{tm_vs_L.png}
+        \caption{TM-score vs. \(L\).}
+        \label{fig:tm-vs-l}
+    \end{subfigure}
+    \caption{RMSD and TM-score versus backbone length \(L\).}
+    \label{fig:rmsd-tm-vs-l}
+\end{figure}
+
+Across all lengths, the GCN model with positional encodings achieves the best performance, with lower RMSD growth rates and consistently higher TM-scores. The UNet baseline performs comparably on shorter backbones but degrades more quickly as length increases, consistent with its reliance on fixed-length padded representations. The GCN without positional encodings consistently underperforms, with rapidly increasing RMSD and TM-scores falling below \(0.2\) for most lengths, highlighting its inability to capture directional structure. These results emphasise that positional encodings are particularly critical for modelling long backbones, where sequential information provides essential constraints on geometry.
+
+\subsection{Qualitative Visualisation}\label{subsec:visualisation}
+Finally, we present visualisations of generated backbones using PyMOL \citep{PyMOL,JyMOL,AxPyMOL}. For each test structure, we overlay the generated backbone with the native structure, \cref{fig:samples}, highlighting both successes (low RMSD/high TM) and failures (plausible but non-native folds).
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}[b]{0.495\textwidth}
+        \centering
+        \includegraphics[width=0.9\linewidth]{1ak6A00_gen_unet.png}
+        \caption{Sample from Unet model.}
+        \label{fig:sample-unet}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.495\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{1ak6A00_gen_pos.png}
+        \caption{Sample from GNN w/ positional encoding.}
+        \label{fig:sample-pos}
+    \end{subfigure}
+    \newline
+    \begin{subfigure}[b]{0.475\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{1a6fA00_gen_wo_pos.png}
+        \caption{Sample from GNN w/o positional encoding.}
+        \label{fig:sample-wo-pos}
+    \end{subfigure}
+    \caption{PyMOL visualisation of generated backbone samples from different models}
+    \label{fig:samples}
 \end{figure}
 
 \subsection{Summary of Results}\label{subsec:results-summary}

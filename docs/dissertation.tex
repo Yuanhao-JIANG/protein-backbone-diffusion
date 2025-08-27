@@ -651,13 +651,22 @@ We further analyse model performance as a function of backbone length \(L\), plo
 Across all lengths, the GCN model with positional encodings achieves the best performance, with lower RMSD growth rates and consistently higher TM-scores. The UNet baseline performs comparably on shorter backbones but degrades more quickly as length increases, consistent with its reliance on fixed-length padded representations. The GCN without positional encodings consistently underperforms, with rapidly increasing RMSD and TM-scores falling below \(0.2\) for most lengths, highlighting its inability to capture directional structure. These results emphasise that positional encodings are particularly critical for modelling long backbones, where sequential information provides essential constraints on geometry.
 
 \subsection{Qualitative Visualisation}\label{subsec:visualisation}
-Finally, we present visualisations of generated backbones using PyMOL \citep{PyMOL,JyMOL,AxPyMOL}. For each test structure, we overlay the generated backbone with the native structure, \cref{fig:samples}, highlighting both successes (low RMSD/high TM) and failures (plausible but non-native folds).
+We now present qualitative visualisations of generated backbones alongside a true native backbone, rendered in PyMOL \citep{PyMOL,JyMOL,AxPyMOL}. For each case, we display the C\(_\alpha\)-trace of the generated structure together with the corresponding reference backbone (\cref{fig:samples}). These visualisations provide an intuitive sense of how different architectures behave, illustrate both successful reconstructions, where the generated backbone closely follows the native fold (low RMSD, high TM-score), and failure cases, where the model produces geometrically plausible but non-native conformations.
+
+The Transformer-based GCN with positional encodings produces generations that resemble the overall topology of the reference backbone, though with local deviations. The UNet baseline yields broadly plausible structures but can introduce artifacts, particularly in regions affected by padding. The GCN without positional encodings performs noticeably worse in this example, 
+producing a collapsed global fold. While these individual cases are not sufficient for firm conclusions, they are broadly consistent with the quantitative trends: positional information improves global fold recovery, and its absence leads to systematic degradation. Together, these visualisations complement the statistical results by illustrating the kinds of conformations the models tend to generate.
 
 \begin{figure}[htbp]
     \centering
     \begin{subfigure}[b]{0.495\textwidth}
         \centering
-        \includegraphics[width=0.9\linewidth]{1ak6A00_gen_unet.png}
+        \includegraphics[width=\linewidth]{1ak6A00_true.png}
+        \caption{True sample from CATH S40.}
+        \label{fig:sample-true}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.495\textwidth}
+        \centering
+        \includegraphics[width=0.95\linewidth]{1ak6A00_gen_unet.png}
         \caption{Sample from Unet model.}
         \label{fig:sample-unet}
     \end{subfigure}
@@ -667,8 +676,7 @@ Finally, we present visualisations of generated backbones using PyMOL \citep{PyM
         \caption{Sample from GNN w/ positional encoding.}
         \label{fig:sample-pos}
     \end{subfigure}
-    \newline
-    \begin{subfigure}[b]{0.475\textwidth}
+    \begin{subfigure}[b]{0.48\textwidth}
         \centering
         \includegraphics[width=\linewidth]{1a6fA00_gen_wo_pos.png}
         \caption{Sample from GNN w/o positional encoding.}
@@ -679,9 +687,12 @@ Finally, we present visualisations of generated backbones using PyMOL \citep{PyM
 \end{figure}
 
 \subsection{Summary of Results}\label{subsec:results-summary}
-% --- To write after results are in ---
-% - Briefly summarise the key findings (ours > baselines, importance of positional encodings, etc.).
-% - Transition to Chapter 5.
+In summary, our experiments demonstrate that incorporating positional encodings into a Transformer-based graph neural network substantially improves backbone generation fidelity. Across quantitative metrics, the positional GCN achieved the lowest RMSD and highest TM-scores, outperforming both the UNet baseline and the GCN without positional information. Distributional analyses further showed that this model produces more consistent samples, while both quantitative results and qualitative visualisations highlighted that the absence of positional encodings often leads to collapsed or unrealistic folds. 
+
+At the same time, challenges remain. RMSD and TM-scores still indicate a gap between generated and native backbones, particularly for long chains where deviations accumulate. Individual qualitative examples provide intuition but do not fully capture the diversity of generated structures, suggesting the need for larger-scale structural assessments. 
+
+Overall, these results underscore the importance of combining geometric and sequential information when modelling proteins with diffusion processes. The following chapter discusses the broader implications of these findings, outlines limitations of the present work, and suggests directions for future 
+research.
 
 \clearpage
 

@@ -139,6 +139,29 @@
   abstract = {We show that passing input points through a simple Fourier feature mapping enables a multilayer perceptron (MLP) to learn high-frequency functions in low-dimensional problem domains. These results shed light on recent advances in computer vision and graphics that achieve state-of-the-art results by using MLPs to represent complex 3D objects and scenes. Using tools from the neural tangent kernel (NTK) literature, we show that a standard MLP has impractically slow convergence to high frequency signal components. To overcome this spectral bias, we use a Fourier feature mapping to transform the effective NTK into a stationary kernel with a tunable bandwidth. We suggest an approach for selecting problem-specific Fourier features that greatly improves the performance of MLPs for low-dimensional regression tasks relevant to the computer vision and graphics communities.}
 }
 
+% Score-Based Generative Models
+@article{song2019GenerativeModelingEstimating,
+  title = {Generative {{Modeling}} by {{Estimating Gradients}} of the {{Data Distribution}}},
+  author = {Song, Yang and Ermon, Stefano},
+  year = {2019},
+  journal = {Advances in Neural Information Processing Systems},
+  volume = {32},
+  urldate = {2025-08-27},
+  langid = {english}
+}
+
+@inproceedings{songImprovedTechniquesTraining2020,
+  title = {Improved {{Techniques}} for {{Training Score-Based Generative Models}}},
+  booktitle = {Advances in {{Neural Information Processing Systems}}},
+  author = {Song, Yang and Ermon, Stefano},
+  year = {2020},
+  volume = {33},
+  pages = {12438--12448},
+  publisher = {Curran Associates, Inc.},
+  urldate = {2025-06-30},
+  abstract = {Score-based generative models can produce high quality image samples comparable to GANs, without requiring adversarial optimization. However, existing training procedures are limited to images of low resolution (typically below 32 x 32), and can be unstable under some settings. We provide a new theoretical analysis of learning and sampling from score models in high dimensional spaces, explaining existing failure modes and motivating new solutions that generalize across datasets.  To enhance stability, we also propose to maintain an exponential moving average of model weights. With these improvements, we can effortlessly scale score-based generative models to images with unprecedented resolutions ranging from 64 x 64 to 256 x 256. Our score-based models can generate high-fidelity samples that rival best-in-class GANs on various image datasets, including CelebA, FFHQ, and multiple LSUN categories.}
+}
+
 % SBD
 @inproceedings{song2021ScoreBasedGenerativeModeling,
   title = {Score-{{Based Generative Modeling}} through {{Stochastic Differential Equations}}},
@@ -574,7 +597,6 @@
   langid = {english},
   keywords = {graph-based learning}
 }
-
 
 @inproceedings{li2019DeepGCNsCanGCNs,
   title = {{{DeepGCNs}}: {{Can GCNs Go As Deep As CNNs}}?},

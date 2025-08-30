@@ -271,59 +271,73 @@ Rather than directly modelling likelihoods or sampling distributions, we train a
 The reverse-time SDE depends on the score function \(\nabla_x \log p_t(x)\), which is generally intractable. Thus, the central learning problem in score-based diffusion is to approximate this score with a neural network \(s_\theta(x,t)\), called time dependent score network (TDSN) \citep{song2021ScoreBasedGenerativeModeling}. Training requires a loss function that encourages \(s_\theta\) to match the true score across noise levels.
 
 \subsubsection{Score Matching and Denoising Score Matching}\label{sec:SM-and-DSM}
-For each time \(t\), the score function of \(x_t\) can be trained via minimising the Fisher divergence between the parameterised model and the true score
+For each time \(t\), the score function of \(x_t\) can be estimated by minimising the Fisher divergence between the parameterised model and the true score:
 \begin{align}\label{eq:FD}
-    J_t\left(\theta\right)=\mathbb{E}_{p\left(x_t\right)}\left[\norm{s_{\theta}\left(x_t, t\right)-\nabla_{x_t}\log p\left(x_t\right)}_2^2\right].
+    J_t(\theta)
+    = \mathbb{E}_{p(x_t)}\!\left[\left\|\,s_\theta(x_t,t)-\nabla_{x_t}\log p(x_t)\,\right\|_2^2\right].
 \end{align}
-The unknown term, true score, \(\nabla_{x_t}\log p\left(x_t\right)\) can be eliminated with the score matching objective \cite{hyvarinenEstimationNonNormalizedStatistical2005}
+Since the true score $\nabla_{x_t}\log p(x_t)$ is unknown, \citet{hyvarinenEstimationNonNormalizedStatistical2005} proposed score matching,
 \begin{align*}
-    J^{\text{SM}}_t(\theta)=\mathbb{E}_{p\left(x_t\right)}\left[\norm{\tr\left(\nabla_{x_t}s_{\theta}\left(x_t,t\right)\right)+\frac{1}{2}\norm{s_{\theta}(x_t,t)}_2^2}_2^2\right].
+    J_t^{\text{SM}}(\theta)
+    = \mathbb{E}_{p(x_t)}\!\left[
+        \mathrm{tr}\!\left(\nabla_{x_t} s_\theta(x_t,t)\right)
+        + \frac{1}{2}\|s_\theta(x_t,t)\|_2^2
+    \right],
 \end{align*}
-However, the term \(\tr\left(\nabla_{x_t}s_{\theta}\left(x_t,t\right)\right)\) can be computationally intensive, especially when the data is in a high dimensional space. \citet{vincentConnectionScoreMatching2011} showed that training a denoising autoencoder to reconstruct clean data from corrupted observations is equivalent to score matching under certain conditions. Indeed, decomposing \cref{eq:FD} yields
+which eliminates this term via integration by parts. However, the divergence term $\mathrm{tr}(\nabla_{x_t}s_\theta)$ requires computing second-order derivatives, which is computationally expensive in high dimensions.
+
+To address this issue, \citet{vincentConnectionScoreMatching2011} showed that training a denoising autoencoder is equivalent to minimising the score matching objective. This motivates the denoising score matching (DSM) objective. To see the connection, expand \cref{eq:FD}:
 \begin{flalign}
-    \nonumber
-    J_t\left(\theta\right)
-    &=\mathrlap{\mathbb{E}_{p\left(x_t\right)}\left[\norm{s_{\theta}\left(x_t, t\right)-\nabla_{x_t}\log p\left(x_t\right)}_2^2\right]}\\
-    \nonumber
-    &=\mathrlap{\mathbb{E}_{p\left(x_t\right)}\left[\norm{s_{\theta}\left(x_t,t\right)}_2^2\right]-2\mathbb{E}_{p\left(x_t\right)}\left[s_{\theta}^T\left(x_t,t\right)\nabla_{x_t}\log p\left(x_t\right)\right]}\\
-    \label{eq:DSM-derivation-0}
-    & &&& +\mathbb{E}_{p\left(x_t\right)}\left[\norm{\nabla_{x_t}\log p\left(x_t\right)}_2^2\right]
+    J_t(\theta)
+    &= \mathbb{E}_{p(x_t)}\!\left[\|s_\theta(x_t,t)\|_2^2\right]
+       - 2\,\mathbb{E}_{p(x_t)}\!\left[s_\theta(x_t,t)^\top \nabla_{x_t}\log p(x_t)\right]
+       + C, \label{eq:DSM-derivation-0}
 \end{flalign}
-where \(C\coloneq\mathbb{E}_{p\left(x_t\right)}\left[\norm{\nabla_{x_t}\log p\left(x_t\right)}_2^2\right]\) is independent of \(\theta\), and now by conditioning on clean data,
+where \(C \coloneq \mathbb{E}_{p(x_t)}\left[\|\nabla_{x_t}\log p(x_t)\|_2^2\right]\) is constant w.r.t.\ $\theta$.  
+Using the law of total expectation, the first term becomes
 \begin{align}
-    \label{eq:DSM-derivation-1}
-    \mathbb{E}_{p\left(x_t\right)}\left[\norm{s_{\theta}\left(x_t,t\right)}_2^2\right]
-    &=\mathbb{E}_{p\left(x_0\right)}\mathbb{E}_{p\left(x_t|x_0\right)}\left[\norm{s_{\theta}\left(x_t,t\right)}_2^2\right]\\
-    \nonumber
-    \mathbb{E}_{p\left(x_t\right)}\left[s_{\theta}^T\left(x_t,t\right)\nabla_{x_t}\log p\left(x_t\right)\right]
-    &=\mathbb{E}_{p\left(x_t\right)}\left[s_{\theta}^T\left(x_t,t\right)\frac{1}{p\left(x_t\right)}\nabla_{x_t}p\left(x_t\right)\right]\\
-    \nonumber
-    &=\int_{x_t}s_{\theta}^T\left(x_t,t\right)\nabla_{x_t}p\left(x_t\right)dx_t\\
-    \nonumber
-    &=\int_{x_t}s_{\theta}^T\left(x_t,t\right)\nabla_{x_t}\int_{x_0}p\left(x_t|x_0\right)p\left(x_0\right)dx_0dx_t\\
-    \nonumber
-    &=\int_{x_0}\int_{x_t}s_{\theta}^T\left(x_t,t\right)\nabla_{x_t}p\left(x_t|x_0\right)p\left(x_0\right)dx_tdx_0\\
-    \nonumber
-    &=\int_{x_0}\int_{x_t}s_{\theta}^T\left(x_t,t\right)\nabla_{x_t}\log p\left(x_t|x_0\right)p\left(x_t|x_0\right)p\left(x_0\right)dx_tdx_0\\
-    \label{eq:DSM-derivation-2}
-    &=\mathbb{E}_{p\left(x_0\right)}\mathbb{E}_{p\left(x_t|x_0\right)}\left[s_{\theta}^T\left(x_t,t\right)\nabla_{x_t}\log p\left(x_t|x_0\right)\right].
+    \mathbb{E}_{p(x_t)}[\|s_\theta(x_t,t)\|_2^2]
+    = \mathbb{E}_{p(x_0)}\,\mathbb{E}_{p(x_t|x_0)}[\|s_\theta(x_t,t)\|_2^2], \label{eq:DSM-derivation-1}
 \end{align}
-Now \cref{eq:DSM-derivation-0,eq:DSM-derivation-1,eq:DSM-derivation-2} yields
+while, under certain conditions, the cross term can be rewritten by conditioning on \(x_0\):
+\begin{align}
+    \nonumber
+    \mathbb{E}_{p(x_t)}\!\left[s_\theta(x_t,t)^\top \nabla_{x_t}\log p(x_t)\right]
+    &=\int_{x_t}s_{\theta}\left(x_t,t\right)^\top\nabla_{x_t}p\left(x_t\right)dx_t\\
+    \nonumber
+    &=\int_{x_t}s_{\theta}\left(x_t,t\right)^\top\nabla_{x_t}\int_{x_0}p\left(x_t|x_0\right)p\left(x_0\right)dx_0dx_t\\
+    \nonumber
+    &=\int_{x_0}\int_{x_t}s_{\theta}(x_t,t)^\top\nabla_{x_t}\log p(x_t|x_0)p(x_t|x_0)p(x_0)dx_tdx_0\\
+    \label{eq:DSM-derivation-2}
+    &=\mathbb{E}_{p(x_0)}\,\mathbb{E}_{p(x_t|x_0)}\!\left[s_\theta(x_t,t)^\top \nabla_{x_t}\log p(x_t|x_0)\right].
+\end{align}
+Substituting \cref{eq:DSM-derivation-1,eq:DSM-derivation-2} into \cref{eq:DSM-derivation-0} and completing the square yields
 \begin{align*}
-    J_t\left(\theta\right)
-    &=\mathbb{E}_{p\left(x_0\right)}\mathbb{E}_{p\left(x_t|x_0\right)}\left[\norm{s_{\theta}\left(x_t,t\right)}_2^2-2s_{\theta}^T\left(x_t,t\right)\nabla_{x_t}\log p\left(x_t|x_0\right)\right]+C\\
-    &=\mathbb{E}_{p\left(x_0\right)}\mathbb{E}_{p\left(x_t|x_0\right)}\left[\norm{s_{\theta}\left(x_t,t\right)-\nabla_{x_t}\log p\left(x_t|x_0\right)}_2^2\right]+C'
+    J_t(\theta)
+    = \mathbb{E}_{p(x_0)}\,\mathbb{E}_{p(x_t|x_0)}\!\left[
+        \|s_\theta(x_t,t)-\nabla_{x_t}\log p(x_t|x_0)\|_2^2
+    \right] + C',
 \end{align*}
-where \(C'\) is a constant that is independent of \(\theta\), introduced by completing the square. It follows the equivalent denoise score match objective \citep{vincentConnectionScoreMatching2011},
+where \(C'\) is constant w.r.t.\ $\theta$. Dropping constants gives the DSM loss:
+\begin{align}\label{eq:DSM-one-t}
+    J_t^{\text{DSM}}(\theta)
+    = \mathbb{E}_{x_0 \sim p_{\text{data}}}\,
+      \mathbb{E}_{x_t \sim p(x_t|x_0)}\!\left[
+        \|s_\theta(x_t,t)-\nabla_{x_t}\log p(x_t|x_0)\|_2^2
+    \right].
+\end{align}
+This equivalence, first established by \citet{vincentConnectionScoreMatching2011}, is the basis of modern score-based generative modeling \citep{song2019GenerativeModelingEstimating,song2021ScoreBasedGenerativeModeling}. In the variance-preserving (VP) SDE, the conditional distribution is Gaussian \(p(x_t|x_0)=\mathcal{N}(\mu_t,\sigma_t^2I)\), where \(\mu_t\) and \(\sigma_t^2\) are given by \cref{eq:VPSDE-solution-mean,eq:VPSDE-solution-variance}, respectively, so the conditional score is analytic:
 \begin{align*}
-    J^{\text{DSM}}_t\left(\theta\right)
-    &=\mathbb{E}_{x_0\sim p_{\text{data}}\left(x_0\right)}\mathbb{E}_{x_t\sim p\left(x_t|x_0\right)}\left[\norm{s_{\theta}\left(x_t,t\right)-\nabla_{x_t}\log p\left(x_t|x_0\right)}_2^2\right]
+    \nabla_{x_t}\log p(x_t|x_0) = -\frac{x_t-\mu_t}{\sigma_t^2},
 \end{align*}
-This connection underpins the training of diffusion models: the neural network is trained to denoise \(x_t\) into \(x_0\), thereby learning the score function implicitly. In the case of VP SDE, since we have the analytic form of the posterior, \cref{eq:VPSDE-solution}, \(J^{\text{DSM}}_t\) is given by
+yielding the practical training loss
 \begin{align*}
-    J^{\text{DSM}}_t\left(\theta\right)=\mathbb{E}_{x_0\sim p_{\text{data}}\left(x_0\right)}\mathbb{E}_{x_t\sim p\left(x_t|x_0\right)}\left[\norm{s_{\theta}\left(x_t,t\right)+\frac{x_t-\mu_{t}}{\sigma_t^2}}_2^2\right]
+    J_t^{\text{DSM}}(\theta)
+    = \mathbb{E}_{x_0\sim p_{\text{data}}\left(x_0\right)}\mathbb{E}_{x_t\sim p\left(x_t|x_0\right)}\!\left[
+        \left\|\,s_\theta(x_t,t) + \frac{x_t-\mu_t}{\sigma_t^2}\,\right\|_2^2
+    \right].
 \end{align*}
-where \(\mu_t\) and \(\sigma_t^2\) are given by \cref{eq:VPSDE-solution-mean,eq:VPSDE-solution-variance}, respectively.
+Thus, the neural network learns to regress directly to the conditional score, making DSM a tractable surrogate for score matching in diffusion models.
 
 The denoising score matching objective \(J^{\text{DSM}}_t\) is for a specific time \(t\). To train the score model across all time \(t\in\left[0,1\right]\) in one go, the overall objective is given by a weighted sum (or average) \citep{song2021ScoreBasedGenerativeModeling}
 \begin{align}\label{eq:DSM}

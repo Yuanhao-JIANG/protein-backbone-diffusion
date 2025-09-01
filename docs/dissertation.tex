@@ -795,7 +795,7 @@ These results suggest that diffusion models combined with graph-based architectu
 
 \appendix
 \section{Code Appendix}
-This appendix provides excerpts from the implementation of the graph neural network (GNN) model described in the main text (\cref{subsubsec:Transformer-GCN}). The code is written in Python and makes use of standard machine learning libraries, including PyTorch and PyTorch Geometric (PyG) \citep{PyG1.0,PyG2.0}. For readability, only the core components of the model are shown here. The complete source code used in this dissertation, including data preprocessing, training and sampling scripts, and relavant utilities, is available in the accompanying GitHub repository: \url{TODO: Make Public Repository}.
+This appendix provides excerpts from the implementation of the graph neural network (GNN) model described in the main text (\cref{subsubsec:Transformer-GCN}). The code is written in Python and makes use of standard machine learning libraries, including PyTorch and PyTorch Geometric (PyG) \citep{PyG1.0,PyG2.0}. For readability, only the core components of the model are shown here. The complete source code used in this dissertation, including data preprocessing, training and sampling scripts, and relavant utilities, is available in the accompanying GitHub repository: \url{https://github.com/Yuanhao-JIANG/protein-backbone-diffusion}.
 \begin{minted}[linenos,breaklines,breaksymbolleft={},breaksymbolright={},frame=single,framesep=2mm,baselinestretch=1.05,]{python}
 class GraphTransformerScoreModel(nn.Module):
     def __init__(self, hidden_dim=128, pos_embed_dim=128, t_embed_dim=128, t_edge_proj_dim=16, num_layers=5, heads=8, max_num_neighbors=500, radius=5, num_basis=32):

@@ -48,6 +48,32 @@
 }
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Langevin MCMC and Original Predictor-Corrector method
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+@article{parisi1981CorrelationFunctionsComputer,
+  title = {Correlation Functions and Computer Simulations},
+  author = {Parisi, G.},
+  year = {1981},
+  month = may,
+  journal = {Nuclear Physics B},
+  volume = {180},
+  number = {3},
+  pages = {378--384},
+  issn = {0550-3213},
+  doi = {10.1016/0550-3213(81)90056-0},
+  urldate = {2025-09-06},
+  abstract = {If the equilibrium properties of a statistical system are obtained by solving numerically the associated Langevin equation describing the approach to equilibrium, the connected correlation functions can be computed directly with small effort and high precision.}
+}
+
+@book{allgower2012numerical,
+  title={Numerical continuation methods: an introduction},
+  author={Allgower, Eugene L and Georg, Kurt},
+  volume={13},
+  year={2012},
+  publisher={Springer Science \& Business Media}
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Diffusion Models: DDPM, SBD
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % DDPM
@@ -78,6 +104,17 @@
   abstract = {Denoising diffusion probabilistic models (DDPM) are a class of generative models which have recently been shown to produce excellent samples. We show that with a few simple modifications, DDPMs can also achieve competitive log-likelihoods while maintaining high sample quality. Additionally, we find that learning variances of the reverse diffusion process allows sampling with an order of magnitude fewer forward passes with a negligible difference in sample quality, which is important for the practical deployment of these models. We additionally use precision and recall to compare how well DDPMs and GANs cover the target distribution. Finally, we show that the sample quality and likelihood of these models scale smoothly with model capacity and training compute, making them easily scalable. We release our code at https://github.com/openai/improved-diffusion},
   archiveprefix = {arXiv},
   keywords = {Computer Science - Artificial Intelligence,Computer Science - Machine Learning,Statistics - Machine Learning}
+}
+
+% Stable Diffusion
+@inproceedings{rombach2022HighResolutionImageSynthesis,
+  title = {High-{{Resolution Image Synthesis With Latent Diffusion Models}}},
+  booktitle = {Proceedings of the {{IEEE}}/{{CVF Conference}} on {{Computer Vision}} and {{Pattern Recognition}}},
+  author = {Rombach, Robin and Blattmann, Andreas and Lorenz, Dominik and Esser, Patrick and Ommer, Bj{\"o}rn},
+  year = {2022},
+  pages = {10684--10695},
+  urldate = {2025-09-06},
+  langid = {english}
 }
 
 % Reverse SDE
@@ -195,6 +232,50 @@
   pages = {36479--36494},
   urldate = {2025-08-25},
   langid = {english}
+}
+
+% SBD beyond images
+@misc{kong2021DiffWaveVersatileDiffusion,
+  title = {{{DiffWave}}: {{A Versatile Diffusion Model}} for {{Audio Synthesis}}},
+  shorttitle = {{{DiffWave}}},
+  author = {Kong, Zhifeng and Ping, Wei and Huang, Jiaji and Zhao, Kexin and Catanzaro, Bryan},
+  year = {2021},
+  month = mar,
+  number = {arXiv:2009.09761},
+  eprint = {2009.09761},
+  primaryclass = {eess},
+  publisher = {arXiv},
+  doi = {10.48550/arXiv.2009.09761},
+  urldate = {2025-09-06},
+  abstract = {In this work, we propose DiffWave, a versatile diffusion probabilistic model for conditional and unconditional waveform generation. The model is non-autoregressive, and converts the white noise signal into structured waveform through a Markov chain with a constant number of steps at synthesis. It is efficiently trained by optimizing a variant of variational bound on the data likelihood. DiffWave produces high-fidelity audios in different waveform generation tasks, including neural vocoding conditioned on mel spectrogram, class-conditional generation, and unconditional generation. We demonstrate that DiffWave matches a strong WaveNet vocoder in terms of speech quality (MOS: 4.44 versus 4.43), while synthesizing orders of magnitude faster. In particular, it significantly outperforms autoregressive and GAN-based waveform models in the challenging unconditional generation task in terms of audio quality and sample diversity from various automatic and human evaluations.},
+  archiveprefix = {arXiv},
+  keywords = {Computer Science - Computation and Language,Computer Science - Machine Learning,Computer Science - Sound,Electrical Engineering and Systems Science - Audio and Speech Processing,Statistics - Machine Learning}
+}
+
+@inproceedings{luo2021DiffusionProbabilisticModels,
+  title = {Diffusion {{Probabilistic Models}} for {{3D Point Cloud Generation}}},
+  booktitle = {Proceedings of the {{IEEE}}/{{CVF Conference}} on {{Computer Vision}} and {{Pattern Recognition}}},
+  author = {Luo, Shitong and Hu, Wei},
+  year = {2021},
+  pages = {2837--2845},
+  urldate = {2025-09-06},
+  langid = {english}
+}
+
+@InProceedings{pmlr-v162-hoogeboom22a,
+  title = 	 {Equivariant Diffusion for Molecule Generation in 3{D}},
+  author =       {Hoogeboom, Emiel and Satorras, V\'{\i}ctor Garcia and Vignac, Cl{\'e}ment and Welling, Max},
+  booktitle = 	 {Proceedings of the 39th International Conference on Machine Learning},
+  pages = 	 {8867--8887},
+  year = 	 {2022},
+  editor = 	 {Chaudhuri, Kamalika and Jegelka, Stefanie and Song, Le and Szepesvari, Csaba and Niu, Gang and Sabato, Sivan},
+  volume = 	 {162},
+  series = 	 {Proceedings of Machine Learning Research},
+  month = 	 {17--23 Jul},
+  publisher =    {PMLR},
+  pdf = 	 {https://proceedings.mlr.press/v162/hoogeboom22a/hoogeboom22a.pdf},
+  url = 	 {https://proceedings.mlr.press/v162/hoogeboom22a.html},
+  abstract = 	 {This work introduces a diffusion model for molecule generation in 3D that is equivariant to Euclidean transformations. Our E(3) Equivariant Diffusion Model (EDM) learns to denoise a diffusion process with an equivariant network that jointly operates on both continuous (atom coordinates) and categorical features (atom types). In addition, we provide a probabilistic analysis which admits likelihood computation of molecules using our model. Experimentally, the proposed method significantly outperforms previous 3D molecular generative methods regarding the quality of generated samples and the efficiency at training time.}
 }
 
 % Constrained Diffusion Models

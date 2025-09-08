@@ -233,7 +233,7 @@ Obviously the variance is always bounded, hence the name variance-preserving. Th
 Other choices of \(f\) and \(g\) in \cref{eq:forward_sde} yield different diffusion processes, \citet{song2021ScoreBasedGenerativeModeling} shown three categories,
 \begin{itemize}
     \item \textbf{Variance-preserving (VP) SDE}: maintains the marginal variance of \(x_t\) at one throughout the process.  
-    \item \textbf{Variance-exploding (VE) SDE}: variance grows unbounded as \(t \to T\), pushing the distribution to white noise.  
+    \item \textbf{Variance-exploding (VE) SDE}: variance grows unbounded as \(t \to 1\), pushing the distribution to white noise.  
     \item \textbf{Sub-variance-preserving (sub-VP) SDE}: an interpolation between VP and VE.  
 \end{itemize}
 We will focus on VP SDE in this dissertation.
@@ -809,7 +809,7 @@ The results indicate that diffusion models combined with graph-based architectur
 
 \appendix
 \section{Code Appendix}
-This appendix provides excerpts from the implementation of the graph neural network (GNN) model described in the main text (\cref{subsubsec:Transformer-GCN}). The code is written in Python and makes use of standard machine learning libraries, including PyTorch and PyTorch Geometric (PyG) \citep{PyG1.0,PyG2.0}. For readability, only the core components of the model are shown here. The complete source code used in this dissertation, including data preprocessing, training and sampling scripts, and relavant utilities, is available in the accompanying GitHub repository: \url{https://github.com/Yuanhao-JIANG/protein-backbone-diffusion}.
+This appendix provides excerpts from the implementation of the graph neural network (GNN) model described in the main text (\cref{subsubsec:Transformer-GCN}). The code is written in Python and makes use of standard machine learning libraries, including PyTorch and PyTorch Geometric (PyG) \citep{PyG1.0,PyG2.0}. For readability, only the core components of the model are shown here. Note that this is a code intensive project, the complete source code used in this dissertation, including data preprocessing, training and sampling scripts, and relavant utilities, is available in the accompanying GitHub repository: \url{https://github.com/Yuanhao-JIANG/protein-backbone-diffusion}.
 \begin{minted}[linenos,breaklines,breaksymbolleft={},breaksymbolright={},frame=single,framesep=2mm,baselinestretch=1.05,]{python}
 class GraphTransformerScoreModel(nn.Module):
     def __init__(self, hidden_dim=128, pos_embed_dim=128, t_embed_dim=128, t_edge_proj_dim=16, num_layers=5, heads=8, max_num_neighbors=500, radius=5, num_basis=32):
